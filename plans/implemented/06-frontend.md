@@ -1,14 +1,14 @@
 # 06 — SolidJS Frontend
 
 ## Checklist
-- [ ] Scaffold `frontend/` with `npm create vite@latest frontend -- --template solid-ts`
-- [ ] Enable `"strict": true` in `tsconfig.json`
-- [ ] Configure `vite.config.ts` with dev proxy
-- [ ] Write `src/App.tsx`
-- [ ] Write `src/components/SessionCard.tsx`
-- [ ] Verify `npm run build` produces `dist/`
-- [ ] Verify `npx oxlint .` passes with no errors
-- [ ] Verify `npx oxfmt --check .` passes
+- [x] Scaffold `frontend/` with `npm create vite@latest frontend -- --template solid-ts`
+- [x] Enable `"strict": true` in `tsconfig.json`
+- [x] Configure `vite.config.ts` with dev proxy
+- [x] Write `src/App.tsx`
+- [x] Write `src/components/SessionCard.tsx`
+- [x] Verify `npm run build` produces `dist/`
+- [x] Verify `npx oxlint .` passes with no errors
+- [x] Verify `npx oxfmt --check .` passes
 
 ## Context
 
