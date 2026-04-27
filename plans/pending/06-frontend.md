@@ -2,10 +2,13 @@
 
 ## Checklist
 - [ ] Scaffold `frontend/` with `npm create vite@latest frontend -- --template solid-ts`
+- [ ] Enable `"strict": true` in `tsconfig.json`
 - [ ] Configure `vite.config.ts` with dev proxy
 - [ ] Write `src/App.tsx`
 - [ ] Write `src/components/SessionCard.tsx`
 - [ ] Verify `npm run build` produces `dist/`
+- [ ] Verify `npx oxlint .` passes with no errors
+- [ ] Verify `npx oxfmt --check .` passes
 
 ## Context
 
@@ -71,3 +74,4 @@ No external date library needed — compute relative time inline.
 
 - The frontend communicates **only** via `/api/sessions` and `/api/events`. It never posts to `/v1/*` (those are OTLP ingress endpoints for agents, not the browser).
 - Do not add a router (e.g. solid-router). The app is a single view.
+- **Do not enable `--react-plugin` in oxlint.** oxlint has no native Solid plugin; the React plugin assumes a virtual DOM model incompatible with SolidJS (e.g. hook rules, effect dependency rules). TypeScript strict mode is the primary Solid correctness gate. If Solid-specific lint rules become necessary, use `eslint-plugin-solid` via ESLint separately.

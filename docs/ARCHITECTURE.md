@@ -39,6 +39,9 @@
 | Tool | Purpose |
 |---|---|
 | `golangci-lint` | Go linting (`errcheck`, `govet`, `staticcheck`, `goimports`, `revive`) |
+| `oxlint` | Frontend JS/TS linting (general correctness; no React plugin — incompatible with SolidJS) |
+| `oxfmt` | Frontend formatting (Prettier-compatible) |
+| TypeScript strict mode | Primary SolidJS correctness gate (`"strict": true` in tsconfig) |
 | Shell scripts | Build orchestration (see `scripts/`) |
 | npm | Frontend package management |
 

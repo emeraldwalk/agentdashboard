@@ -7,6 +7,8 @@
 - [ ] Write `.golangci.yml`
 - [ ] Write root `CLAUDE.md`
 - [ ] Write `.gitignore`
+- [ ] Write `frontend/.oxlintrc.json`
+- [ ] Write `frontend/.oxfmtrc.json`
 
 ## Context
 
@@ -61,7 +63,7 @@ All scripts must be `chmod +x` and start with `#!/usr/bin/env bash` and `set -eu
 |---|---|
 | `build.sh` | `cd frontend && npm ci && npm run build`, then `go build -o bin/agentdashboard ./cmd/agentdashboard` |
 | `dev-go.sh` | `go run ./cmd/agentdashboard --db /tmp/agentdashboard-dev.db` |
-| `lint.sh` | `golangci-lint run ./...` |
+| `lint.sh` | `golangci-lint run ./...` and `cd frontend && npx oxlint . && npx oxfmt --check .` |
 | `test.sh` | `go test ./...` |
 | `clean.sh` | `rm -rf bin/ frontend/dist` |
 
@@ -70,6 +72,30 @@ Frontend dev server is started directly: `cd frontend && npm run dev`.
 ### `.golangci.yml`
 
 Enable linters: `errcheck`, `govet`, `staticcheck`, `goimports`, `revive`.
+
+### `frontend/.oxlintrc.json`
+
+```json
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  }
+}
+```
+
+Do not enable `--react-plugin` — its rules assume React's virtual DOM model and will produce false positives on SolidJS code. TypeScript strict mode (in `tsconfig.json`) is the primary correctness gate for SolidJS-specific patterns.
+
+### `frontend/.oxfmtrc.json`
+
+```json
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json"
+}
+```
+
+Default Prettier-compatible settings. Adjust `printWidth`, `tabWidth`, `singleQuote` here if needed.
 
 ### `.gitignore`
 
