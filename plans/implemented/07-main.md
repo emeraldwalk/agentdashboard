@@ -1,7 +1,7 @@
 # 07 — Main Entry Point
 
 ## Checklist
-- [ ] Write `cmd/agentdashboard/main.go`
+- [x] Write `cmd/agentdashboard/main.go`
 
 ## Context
 

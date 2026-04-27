@@ -1,11 +1,5 @@
 # Agent Dashboard — Master Plan
 
-## Ready to Implement
-
-| Plan | Description |
-|---|---|
-| [07 — Main Entry Point](pending/07-main.md) | `cmd/agentdashboard/main.go`: wires all packages, CLI flags, graceful shutdown |
-
 ## Completed
 
 | Plan | Description | Status |
@@ -16,3 +10,4 @@
 | [04 — SSE Broker](implemented/04-sse-broker.md) | `internal/dashboard/events.go`: fan-out broker wired to OTLP handler | ✅ Done |
 | [05 — Dashboard HTTP Server](implemented/05-dashboard-server.md) | `internal/dashboard/server.go`: static SPA serving, `/api/sessions`, `/api/events` | ✅ Done |
 | [06 — SolidJS Frontend](implemented/06-frontend.md) | Vite + SolidJS scaffold, `App.tsx`, `SessionCard.tsx`, SSE integration | ✅ Done |
+| [07 — Main Entry Point](implemented/07-main.md) | `cmd/agentdashboard/main.go`: wires all packages, CLI flags, graceful shutdown | ✅ Done |
