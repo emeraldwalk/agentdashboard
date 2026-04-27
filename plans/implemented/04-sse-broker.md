@@ -1,8 +1,8 @@
 # 04 — SSE Broker
 
 ## Checklist
-- [ ] Write `internal/dashboard/events.go`
-- [ ] Write `internal/dashboard/events_test.go`
+- [x] Write `internal/dashboard/events.go`
+- [x] Write `internal/dashboard/events_test.go`
 
 ## Context
 
