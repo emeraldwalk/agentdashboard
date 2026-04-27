@@ -1,8 +1,8 @@
 # 05 — Dashboard HTTP Server
 
 ## Checklist
-- [ ] Write `internal/dashboard/server.go`
-- [ ] Write `internal/dashboard/server_test.go`
+- [x] Write `internal/dashboard/server.go`
+- [x] Write `internal/dashboard/server_test.go`
 
 ## Context
 
