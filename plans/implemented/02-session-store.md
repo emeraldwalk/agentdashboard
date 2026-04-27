@@ -1,9 +1,9 @@
 # 02 — Session Model & SQLite Store
 
 ## Checklist
-- [ ] Write `internal/session/model.go`
-- [ ] Write `internal/session/store.go` (interface + SQLite implementation)
-- [ ] Write `internal/session/store_test.go`
+- [x] Write `internal/session/model.go`
+- [x] Write `internal/session/store.go` (interface + SQLite implementation)
+- [x] Write `internal/session/store_test.go`
 
 ## Context
 
