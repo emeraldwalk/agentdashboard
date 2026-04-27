@@ -1,9 +1,9 @@
 # 03 — OTLP HTTP Receiver
 
 ## Checklist
-- [ ] Write `internal/otlp/handler.go`
-- [ ] Write `internal/otlp/parser.go`
-- [ ] Write `internal/otlp/handler_test.go`
+- [x] Write `internal/otlp/handler.go`
+- [x] Write `internal/otlp/parser.go`
+- [x] Write `internal/otlp/handler_test.go`
 
 ## Context
 
