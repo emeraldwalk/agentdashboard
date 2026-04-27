@@ -1,14 +1,14 @@
 # 01 — Project Scaffold
 
 ## Checklist
-- [ ] Create directory structure
-- [ ] Write `go.mod` with module `github.com/emeraldwalk/agentdashboard`, go 1.22
-- [ ] Write `scripts/build.sh`, `scripts/dev-go.sh`, `scripts/lint.sh`, `scripts/test.sh`, `scripts/clean.sh`
-- [ ] Write `.golangci.yml`
-- [ ] Write root `CLAUDE.md`
-- [ ] Write `.gitignore`
-- [ ] Write `frontend/.oxlintrc.json`
-- [ ] Write `frontend/.oxfmtrc.json`
+- [x] Create directory structure
+- [x] Write `go.mod` with module `github.com/emeraldwalk/agentdashboard`, go 1.22
+- [x] Write `scripts/build.sh`, `scripts/dev-go.sh`, `scripts/lint.sh`, `scripts/test.sh`, `scripts/clean.sh`
+- [x] Write `.golangci.yml`
+- [x] Write root `CLAUDE.md`
+- [x] Write `.gitignore`
+- [x] Write `frontend/.oxlintrc.json`
+- [x] Write `frontend/.oxfmtrc.json`
 
 ## Context
 
