@@ -30,7 +30,16 @@ This function is defined in `~/.bashrc` inside the devcontainer and invokes the 
 ./scripts/build.sh
 ```
 
-Builds the frontend (`npm ci && npm run build`) then the Go binary (`go build -o bin/agentdashboard ./cmd/agentdashboard`) with embedded frontend assets.
+Builds the frontend (`npm ci && npm run build`) then Go binaries for all platforms into `bin/`. Do not use `go build` directly.
+
+### Run
+
+```bash
+./agentdashboard          # detects OS/arch, runs the matching bin/agentdashboard-{os}-{arch}
+./agentdashboard --help   # flags: --db, --otlp-addr, --dashboard-addr
+```
+
+Do not run the binary from `bin/` directly — always use `./agentdashboard`.
 
 ### Dev
 

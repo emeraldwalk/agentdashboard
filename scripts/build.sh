@@ -7,6 +7,10 @@ PLATFORMS=("darwin/amd64" "darwin/arm64" "linux/amd64" "linux/arm64" "windows/am
 cd frontend && npm ci && npm run build
 cd ..
 
+# Copy frontend dist to internal/dashboard for embedding
+rm -rf internal/dashboard/dist
+cp -r frontend/dist internal/dashboard/dist
+
 mkdir -p bin
 
 for PLATFORM in "${PLATFORMS[@]}"; do

@@ -25,24 +25,8 @@ func attrValue(attrs []*commonpb.KeyValue, name string) string {
 	return ""
 }
 
-// extractIdentity derives the session ID and agent name from a resource's
-// attributes. Returns ("", "") if the resource should be skipped.
-func extractIdentity(attrs []*commonpb.KeyValue) (id, agentName string) {
-	id = attrValue(attrs, "session.id")
-	if id == "" {
-		id = attrValue(attrs, "service.instance.id")
-	}
-	if id == "" {
-		return "", ""
-	}
-	agentName = attrValue(attrs, "service.name")
-	if agentName == "" {
-		agentName = "unknown"
-	}
-	return id, agentName
-}
-
 // ParseTraces decodes a raw protobuf body into a list of Sessions.
+// session.id is read from span attributes; service.name from resource attributes.
 func ParseTraces(body []byte) ([]session.Session, error) {
 	req := &tracepb.ExportTraceServiceRequest{}
 	if err := proto.Unmarshal(body, req); err != nil {
@@ -50,32 +34,50 @@ func ParseTraces(body []byte) ([]session.Session, error) {
 	}
 
 	now := time.Now().UTC()
-	var sessions []session.Session
+	// Group spans by session.id so one export batch → one session upsert.
+	type spanGroup struct {
+		agentName string
+		spans     []*tracev1.Span
+	}
+	groups := map[string]*spanGroup{}
 
 	for _, rs := range req.GetResourceSpans() {
-		res := rs.GetResource()
-		var attrs []*commonpb.KeyValue
-		if res != nil {
-			attrs = res.GetAttributes()
+		var resAttrs []*commonpb.KeyValue
+		if rs.GetResource() != nil {
+			resAttrs = rs.GetResource().GetAttributes()
+		}
+		agentName := attrValue(resAttrs, "service.name")
+		if agentName == "" {
+			agentName = "unknown"
 		}
 
-		id, agentName := extractIdentity(attrs)
-		if id == "" {
-			continue
-		}
-
-		// Collect all spans across all scopes.
-		var allSpans []*tracev1.Span
 		for _, ss := range rs.GetScopeSpans() {
-			allSpans = append(allSpans, ss.GetSpans()...)
+			for _, sp := range ss.GetSpans() {
+				// session.id lives on span attributes for Claude Code.
+				id := attrValue(sp.GetAttributes(), "session.id")
+				if id == "" {
+					id = attrValue(resAttrs, "session.id")
+				}
+				if id == "" {
+					id = attrValue(resAttrs, "service.instance.id")
+				}
+				if id == "" {
+					continue
+				}
+				if groups[id] == nil {
+					groups[id] = &spanGroup{agentName: agentName}
+				}
+				groups[id].spans = append(groups[id].spans, sp)
+			}
 		}
+	}
 
-		// Derive status.
-		status := deriveTraceStatus(allSpans)
+	var sessions []session.Session
+	for id, g := range groups {
+		status := deriveTraceStatus(g.spans)
 
-		// Earliest start time.
 		var startedAt time.Time
-		for _, sp := range allSpans {
+		for _, sp := range g.spans {
 			if sp.GetStartTimeUnixNano() == 0 {
 				continue
 			}
@@ -90,7 +92,7 @@ func ParseTraces(body []byte) ([]session.Session, error) {
 
 		sessions = append(sessions, session.Session{
 			ID:          id,
-			AgentName:   agentName,
+			AgentName:   g.agentName,
 			Status:      status,
 			StartedAt:   startedAt,
 			LastEventAt: now,
@@ -121,41 +123,18 @@ func deriveTraceStatus(spans []*tracev1.Span) session.Status {
 	return session.StatusStopped
 }
 
-// ParseMetrics decodes metrics payload; returns sessions with status "running" as a heartbeat.
+// ParseMetrics decodes metrics payload. Claude Code does not include session.id
+// in metric resource or data-point attributes, so this currently returns nothing.
 func ParseMetrics(body []byte) ([]session.Session, error) {
 	req := &metricpb.ExportMetricsServiceRequest{}
 	if err := proto.Unmarshal(body, req); err != nil {
 		return nil, err
 	}
-
-	now := time.Now().UTC()
-	var sessions []session.Session
-
-	for _, rm := range req.GetResourceMetrics() {
-		res := rm.GetResource()
-		var attrs []*commonpb.KeyValue
-		if res != nil {
-			attrs = res.GetAttributes()
-		}
-
-		id, agentName := extractIdentity(attrs)
-		if id == "" {
-			continue
-		}
-
-		sessions = append(sessions, session.Session{
-			ID:          id,
-			AgentName:   agentName,
-			Status:      session.StatusRunning,
-			StartedAt:   now,
-			LastEventAt: now,
-		})
-	}
-
-	return sessions, nil
+	return nil, nil
 }
 
-// ParseLogs decodes logs payload; returns sessions inferred from log records.
+// ParseLogs decodes logs payload into Sessions.
+// session.id is read from individual log record attributes; service.name from resource attributes.
 func ParseLogs(body []byte) ([]session.Session, error) {
 	req := &logpb.ExportLogsServiceRequest{}
 	if err := proto.Unmarshal(body, req); err != nil {
@@ -163,27 +142,39 @@ func ParseLogs(body []byte) ([]session.Session, error) {
 	}
 
 	now := time.Now().UTC()
+	// Deduplicate: one upsert per unique session.id per export batch.
+	seen := map[string]bool{}
 	var sessions []session.Session
 
 	for _, rl := range req.GetResourceLogs() {
-		res := rl.GetResource()
-		var attrs []*commonpb.KeyValue
-		if res != nil {
-			attrs = res.GetAttributes()
+		var resAttrs []*commonpb.KeyValue
+		if rl.GetResource() != nil {
+			resAttrs = rl.GetResource().GetAttributes()
+		}
+		agentName := attrValue(resAttrs, "service.name")
+		if agentName == "" {
+			agentName = "unknown"
 		}
 
-		id, agentName := extractIdentity(attrs)
-		if id == "" {
-			continue
+		for _, sl := range rl.GetScopeLogs() {
+			for _, lr := range sl.GetLogRecords() {
+				id := attrValue(lr.GetAttributes(), "session.id")
+				if id == "" {
+					continue
+				}
+				if seen[id] {
+					continue
+				}
+				seen[id] = true
+				sessions = append(sessions, session.Session{
+					ID:          id,
+					AgentName:   agentName,
+					Status:      session.StatusRunning,
+					StartedAt:   now,
+					LastEventAt: now,
+				})
+			}
 		}
-
-		sessions = append(sessions, session.Session{
-			ID:          id,
-			AgentName:   agentName,
-			Status:      session.StatusRunning,
-			StartedAt:   now,
-			LastEventAt: now,
-		})
 	}
 
 	return sessions, nil
