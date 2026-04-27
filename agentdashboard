@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+APP_NAME="agentdashboard"
+
+# Detect OS and Normalize
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+case "$OS" in
+    darwin*)  OS="darwin" ;;
+    linux*)   OS="linux" ;;
+    msys*|cygwin*|mingw*) OS="windows" ;;
+esac
+
+# Detect Architecture and Normalize
+ARCH=$(uname -m)
+case "$ARCH" in
+    x86_64) ARCH="amd64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
+    i386|i686) ARCH="386" ;;
+esac
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BINARY="${SCRIPT_DIR}/bin/${APP_NAME}-${OS}-${ARCH}"
+if [ "$OS" = "windows" ]; then
+    BINARY="${BINARY}.exe"
+fi
+
+if [ -f "$BINARY" ]; then
+    exec "$BINARY" "$@"
+else
+    echo "Error: No binary found for $OS-$ARCH ($BINARY)."
+    echo "Run './scripts/build.sh' to generate binaries."
+    exit 1
+fi

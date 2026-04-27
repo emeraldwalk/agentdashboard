@@ -1,4 +1,12 @@
 bin/
+dist/
 frontend/node_modules/
 frontend/dist/
 *.db
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
