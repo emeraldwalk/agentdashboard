@@ -1,0 +1,77 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
+{
+  "name": "Ubuntu",
+  // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+  "image": "mcr.microsoft.com/devcontainers/base:noble",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "nodeGypDependencies": true,
+      "version": "latest",
+      "pnpmVersion": "none",
+      "nvmVersion": "latest"
+    },
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "latest"
+    }
+  },
+  "remoteEnv": {
+    "PROJECT_PATH": "${containerWorkspaceFolder}",
+    "TZ": "America/Chicago"
+  },
+  "mounts": [
+    // Isolated Claude settings per worktree
+    "source=claude-code-config-${localWorkspaceFolderBasename},target=/home/vscode/.claude,type=volume",
+
+    // User level .claude.json and CLAUDE.md
+    "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.claude/CLAUDE.md,target=/home/vscode/.claude/CLAUDE.md,type=bind,consistency=cached",
+
+    // Skills and .tasks
+    "source=${localEnv:HOME}/.agents/skills,target=${containerWorkspaceFolder}/.claude/skills,type=bind,consistency=cached,readonly",
+    "source=${localEnv:HOME}/.tasks/agentdashboard,target=${containerWorkspaceFolder}/.tasks,type=bind,consistency=cached",
+
+    // node_modules per worktree
+    "source=node-modules-${localWorkspaceFolderBasename},target=${containerWorkspaceFolder}/node_modules,type=volume",
+
+    // Go module and build cache
+    "source=go-cache-agentdashboard,target=/home/vscode/go/pkg,type=volume",
+    "source=go-build-cache-agentdashboard,target=/root/.cache/go-build,type=volume"
+  ],
+  "initializeCommand": ".devcontainer/initializeCommand.sh",
+  "postCreateCommand": ".devcontainer/postCreateCommand.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "oxc.oxc-vscode"
+      ],
+
+      "settings": {
+        // "Yolo" permissions for Claude
+        "claudeCode.allowDangerouslySkipPermissions": true,
+        "claudeCode.initialPermissionMode": "bypassPermissions",
+
+        // Copilot settings
+        "chat.agent.maxRequests": 50,
+        "chat.tools.terminal.autoApprove": {
+          "/.*/": true
+        },
+        "chat.tools.terminal.ignoreDefaultAutoApproveRules": true,
+
+        "editor.defaultFormatter": "oxc.oxc-vscode", // Note: schema warns but this works at runtime
+        "editor.formatOnSave": true,
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "workbench.colorCustomizations": {
+          "statusBar.background": "#49e908",
+          "statusBar.foreground": "#000000",
+          "titleBar.activeBackground": "#49e908",
+          "titleBar.activeForeground": "#000000",
+          "titleBar.inactiveBackground": "#3ec606",
+          "chat.requestBorder": "#e21010",
+          "statusBarItem.remoteBackground": "#e21010"
+        }
+      }
+    }
+  }
+}
