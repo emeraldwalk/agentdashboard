@@ -1,28 +1,37 @@
 import { createSignal, onCleanup, onMount, For, Show } from "solid-js";
-import type { Session } from "./types";
-import SessionCard from "./components/SessionCard";
+import type { Conversation } from "./types";
+import ConversationCard from "./components/ConversationCard";
 
 function App() {
-  const [sessions, setSessions] = createSignal<Session[]>([]);
+  const [conversations, setConversations] = createSignal<Conversation[]>([]);
 
   onMount(() => {
-    fetch("/api/sessions")
-      .then((res) => res.json() as Promise<Session[]>)
-      .then((data) => setSessions(data))
-      .catch((err: unknown) => console.error("Failed to fetch sessions:", err));
+    fetch("/api/conversations")
+      .then((res) => res.json() as Promise<Conversation[]>)
+      .then((data) => {
+        const sorted = [...data].sort(
+          (a, b) =>
+            new Date(b.lastEventAt).getTime() -
+            new Date(a.lastEventAt).getTime(),
+        );
+        setConversations(sorted);
+      })
+      .catch((err: unknown) =>
+        console.error("Failed to fetch conversations:", err),
+      );
 
     const es = new EventSource("/api/events");
 
-    es.addEventListener("session-update", (event: MessageEvent) => {
-      const updated = JSON.parse(event.data as string) as Session;
-      setSessions((prev) => {
-        const idx = prev.findIndex((s) => s.id === updated.id);
-        if (idx === -1) {
-          return [...prev, updated];
-        }
-        const next = [...prev];
-        next[idx] = updated;
-        return next;
+    es.addEventListener("conversation-update", (event: MessageEvent) => {
+      const updated = JSON.parse(event.data as string) as Conversation;
+      setConversations((prev) => {
+        const idx = prev.findIndex((c) => c.id === updated.id);
+        const next = idx === -1 ? [...prev, updated] : prev.map((c, i) => (i === idx ? updated : c));
+        return next.sort(
+          (a, b) =>
+            new Date(b.lastEventAt).getTime() -
+            new Date(a.lastEventAt).getTime(),
+        );
       });
     });
 
@@ -34,12 +43,15 @@ function App() {
   return (
     <main>
       <h1>Agent Dashboard</h1>
-      <Show when={sessions().length > 0} fallback={<p>No sessions</p>}>
+      <Show
+        when={conversations().length > 0}
+        fallback={<p>No conversations</p>}
+      >
         <ul>
-          <For each={sessions()}>
-            {(session) => (
+          <For each={conversations()}>
+            {(conv) => (
               <li>
-                <SessionCard session={session} />
+                <ConversationCard conversation={conv} />
               </li>
             )}
           </For>

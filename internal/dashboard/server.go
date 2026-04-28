@@ -6,50 +6,22 @@ import (
 	"encoding/json"
 	"io/fs"
 	"net/http"
-	"time"
 
-	"github.com/emeraldwalk/agentdashboard/internal/session"
+	"github.com/emeraldwalk/agentdashboard/internal/conversation"
 )
 
 //go:embed all:dist
 var frontendFS embed.FS
 
-// sessionDTO is a JSON-friendly representation of session.Session with camelCase keys.
-type sessionDTO struct {
-	ID          string    `json:"id"`
-	AgentName   string    `json:"agentName"`
-	Status      string    `json:"status"`
-	StartedAt   time.Time `json:"startedAt"`
-	LastEventAt time.Time `json:"lastEventAt"`
-}
-
-// rawEventDTO is a JSON-friendly representation of session.RawEvent.
-type rawEventDTO struct {
-	ID         int64     `json:"id"`
-	Signal     string    `json:"signal"`
-	ReceivedAt time.Time `json:"receivedAt"`
-	Payload    string    `json:"payload"`
-}
-
-func toDTO(s session.Session) sessionDTO {
-	return sessionDTO{
-		ID:          s.ID,
-		AgentName:   s.AgentName,
-		Status:      string(s.Status),
-		StartedAt:   s.StartedAt,
-		LastEventAt: s.LastEventAt,
-	}
-}
-
 // Server serves the dashboard HTTP API and SPA.
 type Server struct {
-	store  session.Store
+	store  conversation.Store
 	broker *Broker
 	addr   string
 }
 
 // NewServer creates a new Server.
-func NewServer(store session.Store, broker *Broker, addr string) *Server {
+func NewServer(store conversation.Store, broker *Broker, addr string) *Server {
 	return &Server{
 		store:  store,
 		broker: broker,
@@ -61,23 +33,14 @@ func NewServer(store session.Store, broker *Broker, addr string) *Server {
 func (s *Server) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
 
-	// /api/sessions — JSON array of sessions
-	mux.HandleFunc("GET /api/sessions", s.handleSessions)
-
-	// /api/raw-events — JSON array of raw OTLP payloads, optional ?signal= filter
-	mux.HandleFunc("GET /api/raw-events", s.handleRawEvents)
-
-	// /api/events — SSE stream
+	mux.HandleFunc("GET /api/conversations", s.handleConversations)
 	mux.HandleFunc("GET /api/events", s.handleEvents)
 
-	// /assets/ — static files from embedded dist/assets/
 	assetsFS, err := fs.Sub(frontendFS, "dist")
 	if err != nil {
 		return err
 	}
 	mux.Handle("GET /assets/", http.FileServerFS(assetsFS))
-
-	// Catch-all — serve SPA index.html
 	mux.HandleFunc("GET /", s.handleSPA)
 
 	srv := &http.Server{
@@ -85,7 +48,6 @@ func (s *Server) Start(ctx context.Context) error {
 		Handler: mux,
 	}
 
-	// Shut down when ctx is cancelled.
 	go func() {
 		<-ctx.Done()
 		srv.Shutdown(context.Background()) //nolint:errcheck
@@ -97,42 +59,19 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) handleRawEvents(w http.ResponseWriter, r *http.Request) {
-	signal := r.URL.Query().Get("signal")
-	events, err := s.store.ListRawEvents(signal)
+func (s *Server) handleConversations(w http.ResponseWriter, r *http.Request) {
+	convs, err := s.store.List()
 	if err != nil {
-		http.Error(w, "failed to list raw events", http.StatusInternalServerError)
+		http.Error(w, "failed to list conversations", http.StatusInternalServerError)
 		return
 	}
 
-	dtos := make([]rawEventDTO, len(events))
-	for i, e := range events {
-		dtos[i] = rawEventDTO{
-			ID:         e.ID,
-			Signal:     e.Signal,
-			ReceivedAt: e.ReceivedAt,
-			Payload:    e.Payload,
-		}
+	if convs == nil {
+		convs = []conversation.Conversation{}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(dtos) //nolint:errcheck
-}
-
-func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
-	sessions, err := s.store.List()
-	if err != nil {
-		http.Error(w, "failed to list sessions", http.StatusInternalServerError)
-		return
-	}
-
-	dtos := make([]sessionDTO, len(sessions))
-	for i, sess := range sessions {
-		dtos[i] = toDTO(sess)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(dtos) //nolint:errcheck
+	json.NewEncoder(w).Encode(convs) //nolint:errcheck
 }
 
 func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
@@ -154,7 +93,7 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			return
 		case data := <-ch:
-			_, err := w.Write([]byte("event: session-update\ndata: " + string(data) + "\n\n"))
+			_, err := w.Write([]byte("event: conversation-update\ndata: " + string(data) + "\n\n"))
 			if err != nil {
 				return
 			}

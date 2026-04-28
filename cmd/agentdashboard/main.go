@@ -2,77 +2,111 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
 
+	"github.com/emeraldwalk/agentdashboard/internal/conversation"
 	"github.com/emeraldwalk/agentdashboard/internal/dashboard"
-	"github.com/emeraldwalk/agentdashboard/internal/otlp"
-	"github.com/emeraldwalk/agentdashboard/internal/session"
+	"github.com/emeraldwalk/agentdashboard/internal/docker"
+	"github.com/emeraldwalk/agentdashboard/internal/watcher"
 )
+
+type ingestHandler struct {
+	store  conversation.Store
+	broker *dashboard.Broker
+}
+
+func (h *ingestHandler) OnConversation(c conversation.Conversation) {
+	if err := h.store.Upsert(c); err != nil {
+		log.Printf("upsert error: %v", err)
+		return
+	}
+	data, _ := json.Marshal(c)
+	h.broker.Publish(data)
+}
+
+func expandHome(path string) (string, error) {
+	if strings.HasPrefix(path, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(home, path[2:]), nil
+	}
+	return path, nil
+}
 
 func main() {
 	dbFlag := flag.String("db", "~/.agentdashboard/sessions.db", "SQLite database file path")
-	otlpAddr := flag.String("otlp-addr", ":4318", "OTLP HTTP listen address")
 	dashboardAddr := flag.String("dashboard-addr", ":8080", "Dashboard HTTP listen address")
+	claudeDir := flag.String("claude-dir", "~/.claude/projects", "Path to host Claude projects directory")
+	dockerSocket := flag.String("docker-socket", "/var/run/docker.sock", "Docker socket path")
 	flag.Parse()
 
-	// Expand ~ to home directory
-	dbPath := *dbFlag
-	if strings.HasPrefix(dbPath, "~/") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to get home directory: %v\n", err)
-			os.Exit(1)
-		}
-		dbPath = filepath.Join(home, dbPath[2:])
+	dbPath, err := expandHome(*dbFlag)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to get home directory: %v\n", err)
+		os.Exit(1)
 	}
 
-	// Create directory if it does not exist
+	claudePath, err := expandHome(*claudeDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to expand claude-dir: %v\n", err)
+		os.Exit(1)
+	}
+
 	dbDir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create directory %s: %v\n", dbDir, err)
 		os.Exit(1)
 	}
 
-	// Open SQLite store
-	store, err := session.NewSQLiteStore(dbPath)
+	store, err := conversation.NewSQLiteStore(dbPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to open store: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Set up root context with signal handling
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	// Create and start broker
 	broker := dashboard.NewBroker()
 	go broker.Run(ctx)
 
-	// Create OTLP handler
-	otlpHandler := otlp.NewHandler(store, store, broker)
-	otlpMux := http.NewServeMux()
-	otlpHandler.RegisterRoutes(otlpMux)
+	handler := &ingestHandler{store: store, broker: broker}
 
-	// Create dashboard server
+	// Start host filesystem watcher.
+	w, err := watcher.New(claudePath, handler)
+	if err != nil {
+		log.Printf("watcher init error: %v", err)
+	} else {
+		go func() {
+			if err := w.Run(ctx); err != nil {
+				log.Printf("watcher error: %v", err)
+			}
+		}()
+	}
+
+	// Start Docker source if socket is available.
+	if _, err := os.Stat(*dockerSocket); err == nil {
+		src := docker.New(*dockerSocket, handler)
+		go func() {
+			if err := src.Run(ctx); err != nil {
+				log.Printf("docker source error: %v", err)
+			}
+		}()
+	} else {
+		log.Printf("docker socket %s not available, skipping Docker discovery", *dockerSocket)
+	}
+
 	server := dashboard.NewServer(store, broker, *dashboardAddr)
-
-	// Start OTLP HTTP server
-	go func() {
-		if err := http.ListenAndServe(*otlpAddr, otlpMux); err != nil && err != http.ErrServerClosed {
-			fmt.Fprintf(os.Stderr, "OTLP server error: %v\n", err)
-			os.Exit(1)
-		}
-	}()
-
-	// Start dashboard HTTP server
 	go func() {
 		if err := server.Start(ctx); err != nil {
 			fmt.Fprintf(os.Stderr, "dashboard server error: %v\n", err)
@@ -80,7 +114,6 @@ func main() {
 		}
 	}()
 
-	// Wait for shutdown signal
 	<-ctx.Done()
 	cancel()
 

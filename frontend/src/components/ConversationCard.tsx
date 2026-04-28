@@ -1,11 +1,11 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
-import type { Session } from "../types";
+import type { Conversation } from "../types";
 
 interface Props {
-  session: Session;
+  conversation: Conversation;
 }
 
-const STATUS_COLORS: Record<Session["status"], string> = {
+const STATUS_COLORS: Record<Conversation["status"], string> = {
   running: "green",
   waiting_input: "yellow",
   stopped: "gray",
@@ -34,7 +34,7 @@ function relativeTime(isoString: string): string {
   return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
 }
 
-function SessionCard(props: Props) {
+function ConversationCard(props: Props) {
   const [now, setNow] = createSignal(Date.now());
 
   onMount(() => {
@@ -43,22 +43,26 @@ function SessionCard(props: Props) {
   });
 
   const badgeStyle = () => {
-    const color = STATUS_COLORS[props.session.status];
+    const color = STATUS_COLORS[props.conversation.status];
     return `background-color: ${color}; color: white; padding: 2px 8px; border-radius: 4px;`;
   };
 
   const lastSeen = () => {
     void now();
-    return relativeTime(props.session.lastEventAt);
+    return relativeTime(props.conversation.lastEventAt);
   };
+
+  const displayName = () =>
+    props.conversation.title || props.conversation.id.slice(0, 8);
 
   return (
     <div>
-      <strong>{props.session.agentName}</strong>
-      <span style={badgeStyle()}>{props.session.status}</span>
+      <small>{props.conversation.project}</small>
+      <strong>{displayName()}</strong>
+      <span style={badgeStyle()}>{props.conversation.status}</span>
       <span>{lastSeen()}</span>
     </div>
   );
 }
 
-export default SessionCard;
+export default ConversationCard;

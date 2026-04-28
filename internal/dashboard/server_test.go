@@ -10,28 +10,27 @@ import (
 	"testing"
 	"time"
 
-	"github.com/emeraldwalk/agentdashboard/internal/session"
+	"github.com/emeraldwalk/agentdashboard/internal/conversation"
 )
 
-// mockStore implements session.Store for testing.
+// mockStore implements conversation.Store for testing.
 type mockStore struct {
-	sessions []session.Session
+	convs []conversation.Conversation
 }
 
-func (m *mockStore) Upsert(s session.Session) error                          { return nil }
-func (m *mockStore) Close() error                                             { return nil }
-func (m *mockStore) List() ([]session.Session, error)                        { return m.sessions, nil }
-func (m *mockStore) AppendRawEvent(signal, payload string) error              { return nil }
-func (m *mockStore) ListRawEvents(signal string) ([]session.RawEvent, error) { return nil, nil }
+func (m *mockStore) Upsert(c conversation.Conversation) error         { return nil }
+func (m *mockStore) Close() error                                      { return nil }
+func (m *mockStore) List() ([]conversation.Conversation, error)        { return m.convs, nil }
 
-func TestHandleSessions(t *testing.T) {
+func TestHandleConversations(t *testing.T) {
 	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)
 	store := &mockStore{
-		sessions: []session.Session{
+		convs: []conversation.Conversation{
 			{
-				ID:          "sess-1",
-				AgentName:   "test-agent",
-				Status:      session.StatusRunning,
+				ID:          "conv-1",
+				Project:     "agentdashboard",
+				Title:       "Fix JSONL parser",
+				Status:      conversation.StatusRunning,
 				StartedAt:   now,
 				LastEventAt: now,
 			},
@@ -41,10 +40,10 @@ func TestHandleSessions(t *testing.T) {
 	broker := NewBroker()
 	srv := NewServer(store, broker, ":0")
 
-	req := httptest.NewRequest("GET", "/api/sessions", nil)
+	req := httptest.NewRequest("GET", "/api/conversations", nil)
 	w := httptest.NewRecorder()
 
-	srv.handleSessions(w, req)
+	srv.handleConversations(w, req)
 
 	res := w.Result()
 	if res.StatusCode != http.StatusOK {
@@ -56,24 +55,24 @@ func TestHandleSessions(t *testing.T) {
 		t.Fatalf("expected application/json content type, got %q", ct)
 	}
 
-	var dtos []sessionDTO
-	if err := json.NewDecoder(res.Body).Decode(&dtos); err != nil {
+	var got []conversation.Conversation
+	if err := json.NewDecoder(res.Body).Decode(&got); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if len(dtos) != 1 {
-		t.Fatalf("expected 1 session, got %d", len(dtos))
+	if len(got) != 1 {
+		t.Fatalf("expected 1 conversation, got %d", len(got))
 	}
 
-	got := dtos[0]
-	if got.ID != "sess-1" {
-		t.Errorf("ID: got %q, want %q", got.ID, "sess-1")
+	c := got[0]
+	if c.ID != "conv-1" {
+		t.Errorf("ID: got %q, want %q", c.ID, "conv-1")
 	}
-	if got.AgentName != "test-agent" {
-		t.Errorf("AgentName: got %q, want %q", got.AgentName, "test-agent")
+	if c.Project != "agentdashboard" {
+		t.Errorf("Project: got %q, want %q", c.Project, "agentdashboard")
 	}
-	if got.Status != "running" {
-		t.Errorf("Status: got %q, want %q", got.Status, "running")
+	if c.Status != conversation.StatusRunning {
+		t.Errorf("Status: got %q, want %q", c.Status, conversation.StatusRunning)
 	}
 }
 
@@ -113,38 +112,32 @@ func TestHandleEvents(t *testing.T) {
 	reqCtx, reqCancel := context.WithCancel(ctx)
 	req := httptest.NewRequest("GET", "/api/events", nil).WithContext(reqCtx)
 
-	// Run the SSE handler in a goroutine.
 	handlerDone := make(chan struct{})
 	go func() {
 		defer close(handlerDone)
 		srv.handleEvents(w, req)
 	}()
 
-	// Wait for the handler to subscribe (it needs time to send on broker.subscribe channel).
 	time.Sleep(50 * time.Millisecond)
 
-	// Publish a message.
-	payload := `{"id":"sess-1","agentName":"test-agent","status":"running","lastEventAt":"2026-04-26T12:00:00Z"}`
+	payload := `{"id":"conv-1","project":"agentdashboard","title":"Fix JSONL parser","status":"running","startedAt":"2026-04-26T12:00:00Z","lastEventAt":"2026-04-26T12:00:00Z"}`
 	go broker.Publish([]byte(payload))
 
-	// Wait for a flush to confirm the event was written.
 	select {
 	case <-w.flushed:
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for SSE flush")
 	}
 
-	// Stop the handler.
 	reqCancel()
 	<-handlerDone
 
-	// Inspect the written body for the SSE event.
 	body := w.Body.String()
 	scanner := bufio.NewScanner(strings.NewReader(body))
 	var foundEvent, foundData bool
 	for scanner.Scan() {
 		line := scanner.Text()
-		if line == "event: session-update" {
+		if line == "event: conversation-update" {
 			foundEvent = true
 		}
 		if line == "data: "+payload {
@@ -153,7 +146,7 @@ func TestHandleEvents(t *testing.T) {
 	}
 
 	if !foundEvent {
-		t.Errorf("SSE body missing 'event: session-update' line; body was:\n%s", body)
+		t.Errorf("SSE body missing 'event: conversation-update' line; body was:\n%s", body)
 	}
 	if !foundData {
 		t.Errorf("SSE body missing expected data line; body was:\n%s", body)

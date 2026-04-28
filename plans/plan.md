@@ -2,9 +2,8 @@
 
 ## Ready to Implement
 
-| Plan                                                                     | Description                                                                          | Status     |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ---------- |
-| [09 — JSONL-Based Conversation Dashboard](pending/09-jsonl-dashboard.md) | Replace OTLP with JSONL log file reader; Docker socket discovery; conversation model | 🔲 Pending |
+| Plan | Description | Status |
+|------|-------------|--------|
 
 ## Completed
 
@@ -18,3 +17,4 @@
 | [06 — SolidJS Frontend](implemented/06-frontend.md)                  | Vite + SolidJS scaffold, `App.tsx`, `SessionCard.tsx`, SSE integration                | ✅ Done |
 | [07 — Main Entry Point](implemented/07-main.md)                      | `cmd/agentdashboard/main.go`: wires all packages, CLI flags, graceful shutdown        | ✅ Done |
 | [08 — Raw Event Capture](implemented/08-raw-event-capture.md)        | Store all OTLP payloads as JSON in `raw_events` table; `GET /api/raw-events` endpoint | ✅ Done |
+| [09 — JSONL-Based Conversation Dashboard](implemented/09-jsonl-dashboard.md) | Replace OTLP with JSONL log file reader; Docker socket discovery; conversation model | ✅ Done |

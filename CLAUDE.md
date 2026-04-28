@@ -36,7 +36,7 @@ Builds the frontend (`npm ci && npm run build`) then Go binaries for all platfor
 
 ```bash
 ./agentdashboard          # detects OS/arch, runs the matching bin/agentdashboard-{os}-{arch}
-./agentdashboard --help   # flags: --db, --otlp-addr, --dashboard-addr
+./agentdashboard --help   # flags: --db, --dashboard-addr, --claude-dir, --docker-socket
 ```
 
 Do not run the binary from `bin/` directly — always use `./agentdashboard`.
@@ -49,7 +49,7 @@ Run two terminals:
 # Terminal 1 — frontend (Vite on :5173)
 cd frontend && npm run dev
 
-# Terminal 2 — Go daemon (OTLP on :4318, dashboard on :8080)
+# Terminal 2 — Go daemon (dashboard on :8080)
 ./scripts/dev-go.sh
 ```
 
@@ -66,14 +66,13 @@ Runs `golangci-lint run ./...` for Go and `npx oxlint . && npx oxfmt --check .` 
 ```bash
 ./scripts/test.sh
 # or for a single package:
-go test ./internal/session/...
+go test ./internal/conversation/...
 ```
 
 ## Ports
 
 | Port | Purpose |
 |---|---|
-| 4318 | OTLP HTTP receiver (agent telemetry ingress, HTTP only) |
 | 8080 | Dashboard HTTP server (browser + API) |
 | 5173 | Vite dev server (frontend development only) |
 
@@ -87,12 +86,8 @@ Override with the `--db` flag:
 ./scripts/dev-go.sh  # uses --db /tmp/agentdashboard-dev.db
 ```
 
-## Protobuf Decode Pattern
+## JSONL Source
 
-```go
-body, _ := io.ReadAll(r.Body)
-var req collectorv1.ExportTraceServiceRequest
-proto.Unmarshal(body, &req)
-```
-
-Import the request type from `go.opentelemetry.io/proto/otlp/collector/trace/v1` (or `metrics`, `logs`). Use `google.golang.org/protobuf/proto` for `proto.Unmarshal`.
+The dashboard reads Claude Code session logs from:
+1. **Host filesystem**: `~/.claude/projects/*.jsonl` (override with `--claude-dir`)
+2. **Docker volumes**: containers with `claude-code-config-*` volumes mounted at `/home/vscode/.claude` (override socket with `--docker-socket`, default `/var/run/docker.sock`)

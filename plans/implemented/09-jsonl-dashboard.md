@@ -2,17 +2,17 @@
 
 ## Checklist
 
-- [ ] Delete `internal/otlp/` package entirely
-- [ ] Replace `internal/session/` with `internal/conversation/` (new model + store)
-- [ ] Write `internal/jsonl/` — JSONL record types + parser
-- [ ] Write `internal/watcher/` — host `~/.claude` filesystem watcher
-- [ ] Write `internal/docker/` — Docker socket volume discovery + exec-based file tailing
-- [ ] Update `internal/dashboard/server.go` — swap session store for conversation store, update API routes
-- [ ] Update `frontend/` — new `Conversation` type, updated card and app
-- [ ] Update `cmd/agentdashboard/main.go` — remove OTLP, wire new packages
-- [ ] Update `scripts/dev-go.sh` — remove `--otlp-addr` flag
-- [ ] Update `CLAUDE.md` — remove OTLP references, document new flags
-- [ ] Update `plans/plan.md`
+- [x] Delete `internal/otlp/` package entirely
+- [x] Replace `internal/session/` with `internal/conversation/` (new model + store)
+- [x] Write `internal/jsonl/` — JSONL record types + parser
+- [x] Write `internal/watcher/` — host `~/.claude` filesystem watcher
+- [x] Write `internal/docker/` — Docker socket volume discovery + exec-based file tailing
+- [x] Update `internal/dashboard/server.go` — swap session store for conversation store, update API routes
+- [x] Update `frontend/` — new `Conversation` type, updated card and app
+- [x] Update `cmd/agentdashboard/main.go` — remove OTLP, wire new packages
+- [x] Update `scripts/dev-go.sh` — remove `--otlp-addr` flag
+- [x] Update `CLAUDE.md` — remove OTLP references, document new flags
+- [x] Update `plans/plan.md`
 
 ---
 

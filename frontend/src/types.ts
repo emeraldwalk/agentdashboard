@@ -1,7 +1,8 @@
-export interface Session {
+export interface Conversation {
   id: string;
-  agentName: string;
+  project: string;
+  title: string;
   status: "running" | "waiting_input" | "stopped" | "failed";
-  startedAt: string; // ISO 8601
-  lastEventAt: string; // ISO 8601
+  startedAt: string;
+  lastEventAt: string;
 }
