@@ -18,3 +18,10 @@ type Session struct {
 	StartedAt   time.Time
 	LastEventAt time.Time
 }
+
+type RawEvent struct {
+	ID         int64
+	Signal     string
+	ReceivedAt time.Time
+	Payload    string
+}

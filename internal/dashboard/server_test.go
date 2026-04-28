@@ -18,9 +18,11 @@ type mockStore struct {
 	sessions []session.Session
 }
 
-func (m *mockStore) Upsert(s session.Session) error         { return nil }
-func (m *mockStore) Close() error                           { return nil }
-func (m *mockStore) List() ([]session.Session, error)       { return m.sessions, nil }
+func (m *mockStore) Upsert(s session.Session) error                          { return nil }
+func (m *mockStore) Close() error                                             { return nil }
+func (m *mockStore) List() ([]session.Session, error)                        { return m.sessions, nil }
+func (m *mockStore) AppendRawEvent(signal, payload string) error              { return nil }
+func (m *mockStore) ListRawEvents(signal string) ([]session.RawEvent, error) { return nil, nil }
 
 func TestHandleSessions(t *testing.T) {
 	now := time.Date(2026, 4, 26, 12, 0, 0, 0, time.UTC)

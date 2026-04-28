@@ -57,7 +57,7 @@ func main() {
 	go broker.Run(ctx)
 
 	// Create OTLP handler
-	otlpHandler := otlp.NewHandler(store, broker)
+	otlpHandler := otlp.NewHandler(store, store, broker)
 	otlpMux := http.NewServeMux()
 	otlpHandler.RegisterRoutes(otlpMux)
 

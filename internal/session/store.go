@@ -11,6 +11,8 @@ import (
 type Store interface {
 	Upsert(s Session) error
 	List() ([]Session, error)
+	AppendRawEvent(signal, payload string) error
+	ListRawEvents(signal string) ([]RawEvent, error)
 	Close() error
 }
 
@@ -21,6 +23,12 @@ CREATE TABLE IF NOT EXISTS sessions (
     status        TEXT NOT NULL,
     started_at    DATETIME NOT NULL,
     last_event_at DATETIME NOT NULL
+);
+CREATE TABLE IF NOT EXISTS raw_events (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    signal      TEXT NOT NULL,
+    received_at DATETIME NOT NULL,
+    payload     TEXT NOT NULL
 );`
 
 type sqliteStore struct {
@@ -99,6 +107,49 @@ func (s *sqliteStore) List() ([]Session, error) {
 	}
 
 	return sessions, nil
+}
+
+func (s *sqliteStore) AppendRawEvent(signal, payload string) error {
+	_, err := s.db.Exec(
+		`INSERT INTO raw_events (signal, received_at, payload) VALUES (?, datetime('now'), ?)`,
+		signal, payload,
+	)
+	if err != nil {
+		return fmt.Errorf("session: append raw event: %w", err)
+	}
+	return nil
+}
+
+func (s *sqliteStore) ListRawEvents(signal string) ([]RawEvent, error) {
+	var rows *sql.Rows
+	var err error
+	if signal != "" {
+		rows, err = s.db.Query(
+			`SELECT id, signal, received_at, payload FROM raw_events WHERE signal = ? ORDER BY id DESC LIMIT 200`,
+			signal,
+		)
+	} else {
+		rows, err = s.db.Query(
+			`SELECT id, signal, received_at, payload FROM raw_events ORDER BY id DESC LIMIT 200`,
+		)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("session: list raw events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []RawEvent
+	for rows.Next() {
+		var e RawEvent
+		if err := rows.Scan(&e.ID, &e.Signal, &e.ReceivedAt, &e.Payload); err != nil {
+			return nil, fmt.Errorf("session: scan raw event: %w", err)
+		}
+		events = append(events, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("session: raw events rows: %w", err)
+	}
+	return events, nil
 }
 
 // Close releases the underlying database connection.

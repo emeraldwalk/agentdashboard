@@ -31,8 +31,10 @@ func (s *stubStore) Upsert(sess session.Session) error {
 	return nil
 }
 
-func (s *stubStore) List() ([]session.Session, error) { return nil, nil }
-func (s *stubStore) Close() error                      { return nil }
+func (s *stubStore) List() ([]session.Session, error)                    { return nil, nil }
+func (s *stubStore) Close() error                                         { return nil }
+func (s *stubStore) AppendRawEvent(signal, payload string) error          { return nil }
+func (s *stubStore) ListRawEvents(signal string) ([]session.RawEvent, error) { return nil, nil }
 
 type stubBroker struct {
 	published [][]byte
@@ -71,7 +73,7 @@ func postProto(t *testing.T, handler http.Handler, path string, msg proto.Messag
 func TestHandleTraces_200AndUpsert(t *testing.T) {
 	store := &stubStore{}
 	broker := &stubBroker{}
-	h := otlp.NewHandler(store, broker)
+	h := otlp.NewHandler(store, store, broker)
 
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
@@ -126,7 +128,7 @@ func TestHandleTraces_200AndUpsert(t *testing.T) {
 func TestHandleTraces_ErrorStatus(t *testing.T) {
 	store := &stubStore{}
 	broker := &stubBroker{}
-	h := otlp.NewHandler(store, broker)
+	h := otlp.NewHandler(store, store, broker)
 
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
@@ -168,7 +170,7 @@ func TestHandleTraces_ErrorStatus(t *testing.T) {
 func TestHandleTraces_WaitingStatus(t *testing.T) {
 	store := &stubStore{}
 	broker := &stubBroker{}
-	h := otlp.NewHandler(store, broker)
+	h := otlp.NewHandler(store, store, broker)
 
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
@@ -204,7 +206,7 @@ func TestHandleTraces_WaitingStatus(t *testing.T) {
 func TestHandleTraces_RunningStatus(t *testing.T) {
 	store := &stubStore{}
 	broker := &stubBroker{}
-	h := otlp.NewHandler(store, broker)
+	h := otlp.NewHandler(store, store, broker)
 
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
@@ -240,7 +242,7 @@ func TestHandleTraces_RunningStatus(t *testing.T) {
 func TestHandleMetrics_200AndUpsert(t *testing.T) {
 	store := &stubStore{}
 	broker := &stubBroker{}
-	h := otlp.NewHandler(store, broker)
+	h := otlp.NewHandler(store, store, broker)
 
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
@@ -277,7 +279,7 @@ func TestHandleMetrics_200AndUpsert(t *testing.T) {
 func TestHandleLogs_200AndUpsert(t *testing.T) {
 	store := &stubStore{}
 	broker := &stubBroker{}
-	h := otlp.NewHandler(store, broker)
+	h := otlp.NewHandler(store, store, broker)
 
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
@@ -321,7 +323,7 @@ func TestHandleLogs_200AndUpsert(t *testing.T) {
 func TestHandleTraces_WrongContentType(t *testing.T) {
 	store := &stubStore{}
 	broker := &stubBroker{}
-	h := otlp.NewHandler(store, broker)
+	h := otlp.NewHandler(store, store, broker)
 
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
@@ -342,7 +344,7 @@ func TestHandleTraces_WrongContentType(t *testing.T) {
 func TestHandleTraces_NoSessionID_Skipped(t *testing.T) {
 	store := &stubStore{}
 	broker := &stubBroker{}
-	h := otlp.NewHandler(store, broker)
+	h := otlp.NewHandler(store, store, broker)
 
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
@@ -372,7 +374,7 @@ func TestHandleTraces_NoSessionID_Skipped(t *testing.T) {
 func TestHandleTraces_FallbackToServiceInstanceID(t *testing.T) {
 	store := &stubStore{}
 	broker := &stubBroker{}
-	h := otlp.NewHandler(store, broker)
+	h := otlp.NewHandler(store, store, broker)
 
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)

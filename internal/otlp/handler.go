@@ -8,6 +8,7 @@ import (
 	logcollpb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	metriccollpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	tracecollpb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/emeraldwalk/agentdashboard/internal/session"
@@ -22,15 +23,21 @@ type BrokerPublisher interface {
 	Publish([]byte)
 }
 
+// RawStore is a narrow interface for persisting raw OTLP payloads.
+type RawStore interface {
+	AppendRawEvent(signal, payload string) error
+}
+
 // Handler handles OTLP HTTP requests.
 type Handler struct {
 	store  session.Store
+	raw    RawStore
 	broker BrokerPublisher
 }
 
-// NewHandler constructs a Handler with the given store and broker.
-func NewHandler(store session.Store, broker BrokerPublisher) *Handler {
-	return &Handler{store: store, broker: broker}
+// NewHandler constructs a Handler with the given store, raw store, and broker.
+func NewHandler(store session.Store, raw RawStore, broker BrokerPublisher) *Handler {
+	return &Handler{store: store, raw: raw, broker: broker}
 }
 
 // RegisterRoutes registers the three OTLP endpoints on mux.
@@ -56,6 +63,15 @@ func readAndCheck(w http.ResponseWriter, r *http.Request) []byte {
 	return body
 }
 
+// captureRaw JSON-encodes a proto message and appends it to the raw store.
+func (h *Handler) captureRaw(signal string, msg proto.Message) {
+	b, err := protojson.Marshal(msg)
+	if err != nil {
+		return
+	}
+	h.raw.AppendRawEvent(signal, string(b)) //nolint:errcheck
+}
+
 // upsertAndPublish calls store.Upsert and broker.Publish for each session.
 func (h *Handler) upsertAndPublish(sessions []session.Session) {
 	for _, sess := range sessions {
@@ -75,6 +91,13 @@ func (h *Handler) handleTraces(w http.ResponseWriter, r *http.Request) {
 	if body == nil {
 		return
 	}
+
+	var req tracecollpb.ExportTraceServiceRequest
+	if err := proto.Unmarshal(body, &req); err != nil {
+		http.Error(w, "failed to parse traces", http.StatusBadRequest)
+		return
+	}
+	h.captureRaw("traces", &req)
 
 	sessions, err := ParseTraces(body)
 	if err != nil {
@@ -97,6 +120,13 @@ func (h *Handler) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var req metriccollpb.ExportMetricsServiceRequest
+	if err := proto.Unmarshal(body, &req); err != nil {
+		http.Error(w, "failed to parse metrics", http.StatusBadRequest)
+		return
+	}
+	h.captureRaw("metrics", &req)
+
 	sessions, err := ParseMetrics(body)
 	if err != nil {
 		http.Error(w, "failed to parse metrics", http.StatusBadRequest)
@@ -117,6 +147,13 @@ func (h *Handler) handleLogs(w http.ResponseWriter, r *http.Request) {
 	if body == nil {
 		return
 	}
+
+	var req logcollpb.ExportLogsServiceRequest
+	if err := proto.Unmarshal(body, &req); err != nil {
+		http.Error(w, "failed to parse logs", http.StatusBadRequest)
+		return
+	}
+	h.captureRaw("logs", &req)
 
 	sessions, err := ParseLogs(body)
 	if err != nil {
