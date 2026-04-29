@@ -4,6 +4,7 @@
 
 | Plan | Description | Status |
 |------|-------------|--------|
+| [10 — Stopped Container Discovery](pending/10-stopped-container-discovery.md) | Ingest JSONL from stopped devcontainers via ephemeral alpine container | Ready |
 
 ## Completed
 
