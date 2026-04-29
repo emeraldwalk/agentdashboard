@@ -5,9 +5,9 @@
   // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
   "image": "mcr.microsoft.com/devcontainers/base:noble",
   "features": {
-    "ghcr.io/devcontainers/features/node:1": {
+    "ghcr.io/devcontainers/features/node:2.0.0": {
       "nodeGypDependencies": true,
-      "version": "latest",
+      "version": "lts",
       "pnpmVersion": "none",
       "nvmVersion": "latest"
     },
@@ -42,10 +42,7 @@
   "postCreateCommand": ".devcontainer/postCreateCommand.sh",
   "customizations": {
     "vscode": {
-      "extensions": [
-        "anthropic.claude-code",
-        "oxc.oxc-vscode"
-      ],
+      "extensions": ["anthropic.claude-code", "oxc.oxc-vscode"],
 
       "settings": {
         // "Yolo" permissions for Claude
