@@ -15,11 +15,11 @@ curl -s --unix-socket /var/run/docker.sock \
   'http://docker/containers/json' \
   | jq '[.[] | {id: .Id[:12], mounts: [.Mounts[] | {name: .Name, dest: .Destination}]}]'
 
-# Containers that have a claude-code-config-* volume at /home/vscode/.claude
+# Running containers that have a claude-code-config-* volume at /home/vscode/.claude
 # (exactly what the app filters on)
 curl -s --unix-socket /var/run/docker.sock \
   'http://docker/containers/json' \
-  | jq '[.[] | select(.Mounts[] | (.Name | startswith("claude-code-config-")) and .Destination == "/home/vscode/.claude") | {id: .Id[:12], project: (.Mounts[] | select(.Name | startswith("claude-code-config-")).Name | ltrimstr("claude-code-config-"))}]'
+  | jq '[.[] | select(.Mounts[] | (.Name // "" | startswith("claude-code-config-")) and .Destination == "/home/vscode/.claude") | {id: .Id[:12], project: (.Mounts[] | select(.Name // "" | startswith("claude-code-config-")).Name | ltrimstr("claude-code-config-"))}]'
 
 # JSONL files inside a specific container (replace CONTAINER_ID)
 CONTAINER_ID=abc123
