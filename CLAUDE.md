@@ -43,15 +43,23 @@ Do not run the binary from `bin/` directly — always use `./agentdashboard`.
 
 ### Dev
 
-Run two terminals:
+The Go binary serves the embedded frontend — a single process is enough for most dev work:
 
 ```bash
-# Terminal 1 — frontend (Vite on :5173)
-cd frontend && npm run dev
+./scripts/dev-go.sh   # go run, serves dashboard + embedded UI on :8080
+```
 
-# Terminal 2 — Go daemon (dashboard on :8080)
+For frontend hot-reloading, run two terminals instead:
+
+```bash
+# Terminal 1 — frontend (Vite on :5173, proxies API to :8080)
+./scripts/dev-ui.sh
+
+# Terminal 2 — Go daemon (dashboard on :8080, no UI rebuild needed)
 ./scripts/dev-go.sh
 ```
+
+When using two-terminal mode, open http://localhost:5173 (not :8080).
 
 ### Lint
 

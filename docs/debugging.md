@@ -1,5 +1,33 @@
 # Debugging & Health Checks
 
+## Starting the app
+
+```bash
+# Build once, then run (serves dashboard + embedded UI on :8080)
+./scripts/build.sh
+./agentdashboard
+
+# Or run without building (go run, dev DB at /tmp/agentdashboard-dev.db)
+./scripts/dev-go.sh
+
+# For frontend hot-reloading, also run in a second terminal:
+./scripts/dev-ui.sh   # Vite on :5173, proxies API to :8080
+```
+
+Open http://localhost:8080 in a browser (or http://localhost:5173 when using `dev-ui.sh`). The app starts watching `~/.claude/projects/*.jsonl` immediately and populates the dashboard from existing files on startup.
+
+CLI flags:
+
+```bash
+./agentdashboard --help
+# --db              SQLite file path (default: ~/.agentdashboard/sessions.db)
+# --dashboard-addr  HTTP listen address (default: :8080)
+# --claude-dir      Host Claude projects dir (default: ~/.claude/projects)
+# --docker-socket   Docker socket path (default: /var/run/docker.sock)
+```
+
+---
+
 ## Docker socket — volume & container discovery
 
 All commands talk to `/var/run/docker.sock` the same way the app does.
