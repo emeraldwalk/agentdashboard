@@ -7,11 +7,11 @@
 ./scripts/build.sh
 ./agentdashboard
 
-# Or run without building (go run, dev DB at /tmp/agentdashboard-dev.db)
+# Or run without building (go run, serves last-built UI from internal/dashboard/dist/ on :8080)
 ./scripts/dev-go.sh
 
-# For frontend hot-reloading, also run in a second terminal:
-./scripts/dev-ui.sh   # Vite on :5173, proxies API to :8080
+# For frontend hot-reloading (live UI changes without rebuilding Go), also run in a second terminal:
+./scripts/dev-ui.sh   # Vite on :5173, proxies API calls to :8080
 ```
 
 Open http://localhost:8080 in a browser (or http://localhost:5173 when using `dev-ui.sh`). The app starts watching `~/.claude/projects/*.jsonl` immediately and populates the dashboard from existing files on startup.

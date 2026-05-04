@@ -43,19 +43,19 @@ Do not run the binary from `bin/` directly — always use `./agentdashboard`.
 
 ### Dev
 
-The Go binary serves the embedded frontend — a single process is enough for most dev work:
+The Go binary serves the last-built frontend from `internal/dashboard/dist/` — a single process is enough for most dev work:
 
 ```bash
-./scripts/dev-go.sh   # go run, serves dashboard + embedded UI on :8080
+./scripts/dev-go.sh   # go run, serves dashboard + last-built UI on :8080
 ```
 
-For frontend hot-reloading, run two terminals instead:
+For live frontend changes (hot-reloading without rebuilding Go), run two terminals:
 
 ```bash
-# Terminal 1 — frontend (Vite on :5173, proxies API to :8080)
+# Terminal 1 — Vite dev server (:5173, proxies API calls to :8080)
 ./scripts/dev-ui.sh
 
-# Terminal 2 — Go daemon (dashboard on :8080, no UI rebuild needed)
+# Terminal 2 — Go daemon (API + embedded UI on :8080)
 ./scripts/dev-go.sh
 ```
 
