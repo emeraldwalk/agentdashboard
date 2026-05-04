@@ -30,7 +30,7 @@ type sqliteStore struct {
 
 // NewSQLiteStore opens (or creates) a SQLite database at path and runs the schema migration.
 func NewSQLiteStore(path string) (Store, error) {
-	db, err := sql.Open("sqlite", path)
+	db, err := sql.Open("sqlite", path+"?_busy_timeout=5000&_journal_mode=WAL")
 	if err != nil {
 		return nil, fmt.Errorf("conversation: open sqlite: %w", err)
 	}

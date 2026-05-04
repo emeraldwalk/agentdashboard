@@ -3,6 +3,7 @@ package watcher
 import (
 	"context"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -30,18 +31,18 @@ func New(root string, handler Handler) (*Watcher, error) {
 
 // Run scans existing files then watches for changes until ctx is cancelled.
 func (w *Watcher) Run(ctx context.Context) error {
-	// Initial scan of all existing JSONL files.
-	matches, err := filepath.Glob(filepath.Join(w.root, "*.jsonl"))
+	// Initial scan: <root>/<project>/*.jsonl
+	projMatches, err := filepath.Glob(filepath.Join(w.root, "*", "*.jsonl"))
 	if err == nil {
-		for _, path := range matches {
-			w.processFile(path, "local")
+		for _, path := range projMatches {
+			w.processFile(path)
 		}
 	}
-	// Also scan subagent files.
-	subMatches, err := filepath.Glob(filepath.Join(w.root, "*/subagents/*.jsonl"))
+	// Initial scan: <root>/<project>/subagents/*.jsonl
+	subMatches, err := filepath.Glob(filepath.Join(w.root, "*", "subagents", "*.jsonl"))
 	if err == nil {
 		for _, path := range subMatches {
-			w.processFile(path, "local")
+			w.processFile(path)
 		}
 	}
 
@@ -58,11 +59,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 		return nil
 	}
 
-	// Watch every subdirectory for subagent files.
-	subdirs, _ := filepath.Glob(filepath.Join(w.root, "*/subagents"))
-	for _, d := range subdirs {
-		_ = fw.Add(d)
-	}
+	// Watch every project subdirectory and its subagents dir.
+	w.addSubdirs(fw)
 
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
@@ -77,7 +75,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			}
 			if strings.HasSuffix(event.Name, ".jsonl") &&
 				(event.Op&(fsnotify.Create|fsnotify.Write)) != 0 {
-				w.processFile(event.Name, "local")
+				w.processFile(event.Name)
 			}
 		case err, ok := <-fw.Errors:
 			if !ok {
@@ -86,15 +84,20 @@ func (w *Watcher) Run(ctx context.Context) error {
 			log.Printf("watcher: fsnotify error: %v", err)
 		case <-ticker.C:
 			// Periodically re-add any new subdirs that appeared.
-			subdirs, _ := filepath.Glob(filepath.Join(w.root, "*/subagents"))
-			for _, d := range subdirs {
-				_ = fw.Add(d)
-			}
+			w.addSubdirs(fw)
 		}
 	}
 }
 
-func (w *Watcher) processFile(path, project string) {
+func (w *Watcher) addSubdirs(fw *fsnotify.Watcher) {
+	projDirs, _ := filepath.Glob(filepath.Join(w.root, "*"))
+	for _, d := range projDirs {
+		_ = fw.Add(d)
+		_ = fw.Add(filepath.Join(d, "subagents"))
+	}
+}
+
+func (w *Watcher) processFile(path string) {
 	records, err := jsonl.ParseFile(path)
 	if err != nil || len(records) == 0 {
 		return
@@ -104,6 +107,8 @@ func (w *Watcher) processFile(path, project string) {
 	if sessionID == "" {
 		return
 	}
+
+	project := projectFromPath(w.root, path)
 
 	// Extract title from ai-title records.
 	var title string
@@ -130,9 +135,33 @@ func (w *Watcher) processFile(path, project string) {
 	w.handler.OnConversation(c)
 }
 
+// projectFromPath returns a human-readable project name for a JSONL file.
+// Claude encodes the working directory path as the project dir name by replacing
+// '/' with '-', producing e.g. "-Users-bingles-code-tools-agentdashboard".
+// We strip the leading '-' then strip the encoded home directory prefix so that
+// only the path relative to home remains, e.g. "code-tools-agentdashboard".
+func projectFromPath(root, path string) string {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return ""
+	}
+	dir := strings.SplitN(rel, string(filepath.Separator), 2)[0]
+
+	// Strip leading '-' produced by the leading '/' in the absolute path.
+	dir = strings.TrimPrefix(dir, "-")
+
+	// Encode the home directory the same way Claude does (replace '/' with '-')
+	// and strip it from the front of dir.
+	if home, err := os.UserHomeDir(); err == nil {
+		encodedHome := strings.TrimPrefix(strings.ReplaceAll(home, "/", "-"), "-")
+		dir = strings.TrimPrefix(dir, encodedHome)
+		dir = strings.TrimPrefix(dir, "-")
+	}
+
+	return dir
+}
+
 // sessionIDFromPath extracts the session/agent ID from a JSONL file path.
-// For ~/.claude/projects/<uuid>.jsonl → <uuid>
-// For ~/.claude/projects/<uuid>/subagents/agent-<id>.jsonl → agent-<id>
 func sessionIDFromPath(path string) string {
 	base := filepath.Base(path)
 	return strings.TrimSuffix(base, ".jsonl")

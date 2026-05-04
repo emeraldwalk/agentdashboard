@@ -46,13 +46,16 @@ func ParseFile(path string) ([]Record, error) {
 // DeriveStatus returns the conversation status from an ordered slice of records (oldest first).
 func DeriveStatus(records []Record) conversation.Status {
 	var lastType string
+	var lastHumanTurn bool
 	var lastDequeue time.Time
 
 	for _, r := range records {
 		switch r.Type {
 		case "user":
+			lastHumanTurn = r.IsHumanTurn()
 			lastType = "user"
 		case "assistant":
+			lastHumanTurn = false
 			lastType = "assistant"
 		case "queue-operation":
 			if r.Operation == "dequeue" {
@@ -65,10 +68,11 @@ func DeriveStatus(records []Record) conversation.Status {
 		}
 	}
 
-	if lastType == "user" {
+	// Only waiting_input when the last user record was a human typing, not a tool result.
+	if lastType == "user" && lastHumanTurn {
 		return conversation.StatusWaiting
 	}
-	if lastType == "assistant" {
+	if lastType == "assistant" || (lastType == "user" && !lastHumanTurn) {
 		if !lastDequeue.IsZero() && time.Since(lastDequeue) < 30*time.Second {
 			return conversation.StatusRunning
 		}
