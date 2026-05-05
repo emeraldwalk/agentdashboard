@@ -1,5 +1,11 @@
 # Agent Dashboard — Master Plan
 
+## Ready to Implement
+
+| Plan | Description | Status |
+| ---- | ----------- | ------ |
+| [11 — Project Status Cards UI](pending/11-project-status-cards-ui.md) | Group by project into status cards; host vs. docker indicator | 🟢 Ready |
+
 ## Completed
 
 | Plan                                                                 | Description                                                                           | Status  |
