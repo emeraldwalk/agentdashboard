@@ -263,6 +263,7 @@ func (s *Source) processContainerFile(ctx context.Context, containerID, path, pr
 		Project:     project,
 		Title:       title,
 		Status:      jsonl.DeriveStatus(records),
+		Source:      conversation.SourceDocker,
 		StartedAt:   startedAt,
 		LastEventAt: lastEventAt,
 	}

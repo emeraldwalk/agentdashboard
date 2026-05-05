@@ -20,9 +20,12 @@ CREATE TABLE IF NOT EXISTS conversations (
     project       TEXT NOT NULL,
     title         TEXT NOT NULL DEFAULT '',
     status        TEXT NOT NULL,
+    source        TEXT NOT NULL DEFAULT 'host',
     started_at    DATETIME NOT NULL,
     last_event_at DATETIME NOT NULL
 );`
+
+const migration01 = `ALTER TABLE conversations ADD COLUMN source TEXT NOT NULL DEFAULT 'host';`
 
 type sqliteStore struct {
 	db *sql.DB
@@ -41,20 +44,24 @@ func NewSQLiteStore(path string) (Store, error) {
 		return nil, fmt.Errorf("conversation: migrate schema: %w", err)
 	}
 
+	// Add source column to existing databases that predate this field.
+	_, _ = db.Exec(migration01)
+
 	return &sqliteStore{db: db}, nil
 }
 
 // Upsert inserts or updates a conversation, preserving started_at on conflict.
 func (s *sqliteStore) Upsert(c Conversation) error {
 	_, err := s.db.Exec(
-		`INSERT INTO conversations (id, project, title, status, started_at, last_event_at)
-		 VALUES (?, ?, ?, ?, ?, ?)
+		`INSERT INTO conversations (id, project, title, status, source, started_at, last_event_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(id) DO UPDATE SET
-		   project      = excluded.project,
-		   title        = excluded.title,
-		   status       = excluded.status,
+		   project       = excluded.project,
+		   title         = excluded.title,
+		   status        = excluded.status,
+		   source        = excluded.source,
 		   last_event_at = excluded.last_event_at`,
-		c.ID, c.Project, c.Title, string(c.Status),
+		c.ID, c.Project, c.Title, string(c.Status), string(c.Source),
 		c.StartedAt.UTC(), c.LastEventAt.UTC(),
 	)
 	if err != nil {
@@ -66,7 +73,7 @@ func (s *sqliteStore) Upsert(c Conversation) error {
 // List returns all conversations ordered by last_event_at descending.
 func (s *sqliteStore) List() ([]Conversation, error) {
 	rows, err := s.db.Query(
-		`SELECT id, project, title, status, started_at, last_event_at
+		`SELECT id, project, title, status, source, started_at, last_event_at
 		 FROM conversations
 		 ORDER BY last_event_at DESC`,
 	)
@@ -78,14 +85,15 @@ func (s *sqliteStore) List() ([]Conversation, error) {
 	var convs []Conversation
 	for rows.Next() {
 		var c Conversation
-		var status string
+		var status, source string
 		if err := rows.Scan(
-			&c.ID, &c.Project, &c.Title, &status,
+			&c.ID, &c.Project, &c.Title, &status, &source,
 			&c.StartedAt, &c.LastEventAt,
 		); err != nil {
 			return nil, fmt.Errorf("conversation: list scan: %w", err)
 		}
 		c.Status = Status(status)
+		c.Source = Source(source)
 		convs = append(convs, c)
 	}
 	if err := rows.Err(); err != nil {

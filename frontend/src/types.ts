@@ -3,6 +3,7 @@ export interface Conversation {
   project: string;
   title: string;
   status: "running" | "waiting_input" | "stopped" | "failed";
+  source: "host" | "docker";
   startedAt: string;
   lastEventAt: string;
 }

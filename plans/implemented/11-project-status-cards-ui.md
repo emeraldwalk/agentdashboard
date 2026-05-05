@@ -2,13 +2,13 @@
 
 ## Implementation Checklist
 
-- [ ] Add `source` field to `Conversation` model, store, and API
-- [ ] Populate `source` in watcher and docker source
-- [ ] Group conversations by project in frontend (derive `ProjectGroup`)
-- [ ] Build `ProjectCard` component (collapsed / expanded conversation list)
-- [ ] Build `ConversationRow` subcomponent (replaces flat `ConversationCard`)
-- [ ] Update `App.tsx` to render grouped `ProjectCard` list
-- [ ] Wire SSE updates into the grouped data structure
+- [x] Add `source` field to `Conversation` model, store, and API
+- [x] Populate `source` in watcher and docker source
+- [x] Group conversations by project in frontend (derive `ProjectGroup`)
+- [x] Build `ProjectCard` component (collapsed / expanded conversation list)
+- [x] Build `ConversationRow` subcomponent (replaces flat `ConversationCard`)
+- [x] Update `App.tsx` to render grouped `ProjectCard` list
+- [x] Wire SSE updates into the grouped data structure
 
 ---
 

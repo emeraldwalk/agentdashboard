@@ -129,6 +129,7 @@ func (w *Watcher) processFile(path string) {
 		Project:     project,
 		Title:       title,
 		Status:      jsonl.DeriveStatus(records),
+		Source:      conversation.SourceHost,
 		StartedAt:   startedAt,
 		LastEventAt: lastEventAt,
 	}
