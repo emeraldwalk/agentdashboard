@@ -47,16 +47,22 @@ func ParseFile(path string) ([]Record, error) {
 func DeriveStatus(records []Record) conversation.Status {
 	var lastType string
 	var lastHumanTurn bool
+	var lastHasToolUse bool
 	var lastDequeue time.Time
+	var lastRecordAt time.Time
 
 	for _, r := range records {
 		switch r.Type {
 		case "user":
 			lastHumanTurn = r.IsHumanTurn()
+			lastHasToolUse = false // tool_use was consumed by this user record
 			lastType = "user"
+			lastRecordAt = r.Timestamp
 		case "assistant":
 			lastHumanTurn = false
+			lastHasToolUse = r.HasToolUse()
 			lastType = "assistant"
+			lastRecordAt = r.Timestamp
 		case "queue-operation":
 			if r.Operation == "dequeue" {
 				lastDequeue = r.Timestamp
@@ -68,12 +74,25 @@ func DeriveStatus(records []Record) conversation.Status {
 		}
 	}
 
-	// Only waiting_input when the last user record was a human typing, not a tool result.
+	// Only waiting_input when the last user record was a human typing, not a tool result,
+	// and there is no recent dequeue (which would mean Claude is actively processing it).
 	if lastType == "user" && lastHumanTurn {
+		if !lastDequeue.IsZero() && time.Since(lastDequeue) < 30*time.Second {
+			return conversation.StatusRunning
+		}
 		return conversation.StatusWaiting
 	}
 	if lastType == "assistant" || (lastType == "user" && !lastHumanTurn) {
+		// Pending tool_use means we're waiting for a tool (subagent, bash, etc.) to
+		// return results — show running regardless of how long ago the dequeue was.
+		if lastHasToolUse {
+			return conversation.StatusRunning
+		}
+		// Recent dequeue or recently written record both indicate active processing.
 		if !lastDequeue.IsZero() && time.Since(lastDequeue) < 30*time.Second {
+			return conversation.StatusRunning
+		}
+		if !lastRecordAt.IsZero() && time.Since(lastRecordAt) < 30*time.Second {
 			return conversation.StatusRunning
 		}
 		return conversation.StatusStopped

@@ -56,6 +56,10 @@ func (b *Broker) Unsubscribe(ch chan []byte) {
 }
 
 // Publish sends data to all current subscribers (non-blocking per subscriber).
-func (b *Broker) Publish(data []byte) {
-	b.publish <- data
+// Returns without blocking if the broker has stopped.
+func (b *Broker) Publish(ctx context.Context, data []byte) {
+	select {
+	case b.publish <- data:
+	case <-ctx.Done():
+	}
 }

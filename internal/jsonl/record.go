@@ -46,3 +46,21 @@ func (r Record) IsHumanTurn() bool {
 	}
 	return blocks[0].Type == "text"
 }
+
+// HasToolUse returns true when this is an assistant message containing at least
+// one tool_use block, meaning the session is waiting for tool results.
+func (r Record) HasToolUse() bool {
+	if r.Type != "assistant" || r.Message == nil {
+		return false
+	}
+	var blocks []ContentBlock
+	if err := json.Unmarshal(r.Message.Content, &blocks); err != nil {
+		return false
+	}
+	for _, b := range blocks {
+		if b.Type == "tool_use" {
+			return true
+		}
+	}
+	return false
+}

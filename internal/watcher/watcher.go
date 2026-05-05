@@ -83,8 +83,23 @@ func (w *Watcher) Run(ctx context.Context) error {
 			}
 			log.Printf("watcher: fsnotify error: %v", err)
 		case <-ticker.C:
-			// Periodically re-add any new subdirs that appeared.
+			// Periodically re-add any new subdirs and re-scan all files to
+			// correct stale "running" statuses when no fsnotify event fires.
 			w.addSubdirs(fw)
+			w.scanAll()
+		}
+	}
+}
+
+func (w *Watcher) scanAll() {
+	if matches, err := filepath.Glob(filepath.Join(w.root, "*", "*.jsonl")); err == nil {
+		for _, path := range matches {
+			w.processFile(path)
+		}
+	}
+	if matches, err := filepath.Glob(filepath.Join(w.root, "*", "subagents", "*.jsonl")); err == nil {
+		for _, path := range matches {
+			w.processFile(path)
 		}
 	}
 }

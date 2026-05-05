@@ -19,6 +19,7 @@ import (
 )
 
 type ingestHandler struct {
+	ctx    context.Context
 	store  conversation.Store
 	broker *dashboard.Broker
 }
@@ -29,7 +30,7 @@ func (h *ingestHandler) OnConversation(c conversation.Conversation) {
 		return
 	}
 	data, _ := json.Marshal(c)
-	h.broker.Publish(data)
+	h.broker.Publish(h.ctx, data)
 }
 
 func expandHome(path string) (string, error) {
@@ -80,7 +81,7 @@ func main() {
 	broker := dashboard.NewBroker()
 	go broker.Run(ctx)
 
-	handler := &ingestHandler{store: store, broker: broker}
+	handler := &ingestHandler{ctx: ctx, store: store, broker: broker}
 
 	// Start host filesystem watcher.
 	w, err := watcher.New(claudePath, handler)

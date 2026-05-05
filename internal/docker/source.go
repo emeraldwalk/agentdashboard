@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/emeraldwalk/agentdashboard/internal/conversation"
@@ -21,6 +22,7 @@ type Source struct {
 	socketPath      string
 	handler         watcher.Handler
 	client          *http.Client
+	mu              sync.Mutex
 	ingestedVolumes map[string]struct{} // stopped-container volumes already fully read
 }
 
@@ -41,30 +43,32 @@ func New(socketPath string, handler watcher.Handler) *Source {
 	}
 }
 
-// Run discovers containers with claude-code-config-* volumes every 30 seconds until ctx is cancelled.
+// Run polls running containers every 10 seconds and ingests stopped containers
+// once at startup in a background goroutine so slow stopped-container processing
+// does not block the live-refresh loop.
 func (s *Source) Run(ctx context.Context) error {
-	ticker := time.NewTicker(30 * time.Second)
+	go s.ingestStopped(ctx)
+
+	s.pollRunning(ctx)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
-
-	s.discover(ctx)
-
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			s.discover(ctx)
+			s.pollRunning(ctx)
 		}
 	}
 }
 
-func (s *Source) discover(ctx context.Context) {
+// pollRunning re-reads all currently running containers on every tick.
+func (s *Source) pollRunning(ctx context.Context) {
 	volumes, err := s.listClaudeVolumes(ctx)
 	if err != nil {
 		log.Printf("docker: list volumes: %v", err)
 		return
 	}
-
 	for _, vol := range volumes {
 		project := strings.TrimPrefix(vol, "claude-code-config-")
 		containerID, running, err := s.findContainerForVolume(ctx, vol)
@@ -72,17 +76,44 @@ func (s *Source) discover(ctx context.Context) {
 			log.Printf("docker: find container for %s: %v", vol, err)
 			continue
 		}
-
 		if running {
-			// Always re-read running containers — they may have new sessions.
 			s.tailFilesInContainer(ctx, containerID, project, "/home/vscode/.claude/projects")
-		} else {
-			// Skip stopped volumes already fully ingested.
-			if _, done := s.ingestedVolumes[vol]; done {
-				continue
-			}
+		}
+	}
+}
+
+// ingestStopped processes stopped-container volumes once, skipping any already ingested.
+func (s *Source) ingestStopped(ctx context.Context) {
+	volumes, err := s.listClaudeVolumes(ctx)
+	if err != nil {
+		log.Printf("docker: ingestStopped list volumes: %v", err)
+		return
+	}
+	for _, vol := range volumes {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		s.mu.Lock()
+		_, done := s.ingestedVolumes[vol]
+		s.mu.Unlock()
+		if done {
+			continue
+		}
+
+		project := strings.TrimPrefix(vol, "claude-code-config-")
+		containerID, running, err := s.findContainerForVolume(ctx, vol)
+		if err != nil {
+			log.Printf("docker: find container for %s: %v", vol, err)
+			continue
+		}
+		log.Printf("docker: volume=%s containerID=%s running=%v", vol, containerID, running)
+		if !running {
 			s.readFilesViaTemporaryContainer(ctx, vol, project)
+			s.mu.Lock()
 			s.ingestedVolumes[vol] = struct{}{}
+			s.mu.Unlock()
 		}
 	}
 }
@@ -158,7 +189,7 @@ func (s *Source) readFilesViaTemporaryContainer(ctx context.Context, volumeName,
 		"Cmd":   []string{"sleep", "30"},
 		"HostConfig": map[string]any{
 			"Binds":      []string{volumeName + ":/data"},
-			"AutoRemove": false,
+			"AutoRemove": true,
 		},
 	})
 	createReq, err := http.NewRequestWithContext(ctx, "POST", "http://docker/containers/create",
@@ -183,18 +214,6 @@ func (s *Source) readFilesViaTemporaryContainer(ctx context.Context, volumeName,
 		log.Printf("docker: decode create response for %s: %v", volumeName, err)
 		return
 	}
-
-	defer func() {
-		delReq, err := http.NewRequestWithContext(ctx, "DELETE",
-			"http://docker/containers/"+created.ID+"?force=true", nil)
-		if err != nil {
-			log.Printf("docker: delete temp container %s: %v", created.ID[:12], err)
-			return
-		}
-		if _, err := s.client.Do(delReq); err != nil {
-			log.Printf("docker: delete temp container %s: %v", created.ID[:12], err)
-		}
-	}()
 
 	startReq, err := http.NewRequestWithContext(ctx, "POST",
 		"http://docker/containers/"+created.ID+"/start",
@@ -221,7 +240,9 @@ func (s *Source) tailFilesInContainer(ctx context.Context, containerID, project,
 		return
 	}
 
-	for _, path := range strings.Split(strings.TrimSpace(output), "\n") {
+	paths := strings.Split(strings.TrimSpace(output), "\n")
+	log.Printf("docker: %s found %d jsonl files", project, len(paths))
+	for _, path := range paths {
 		path = strings.TrimSpace(path)
 		if path == "" {
 			continue
@@ -239,6 +260,7 @@ func (s *Source) processContainerFile(ctx context.Context, containerID, path, pr
 
 	records, err := jsonl.Parse(strings.NewReader(content))
 	if err != nil || len(records) == 0 {
+		log.Printf("docker: parse %s: err=%v records=%d", path, err, len(records))
 		return
 	}
 
