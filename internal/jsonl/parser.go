@@ -77,7 +77,7 @@ func DeriveStatus(records []Record) conversation.Status {
 	// Only waiting_input when the last user record was a human typing, not a tool result,
 	// and there is no recent dequeue (which would mean Claude is actively processing it).
 	if lastType == "user" && lastHumanTurn {
-		if !lastDequeue.IsZero() && time.Since(lastDequeue) < 30*time.Second {
+		if !lastDequeue.IsZero() && time.Since(lastDequeue) < 15*time.Second {
 			return conversation.StatusRunning
 		}
 		return conversation.StatusWaiting
@@ -89,15 +89,15 @@ func DeriveStatus(records []Record) conversation.Status {
 			return conversation.StatusRunning
 		}
 		// Recent dequeue or recently written record both indicate active processing.
-		if !lastDequeue.IsZero() && time.Since(lastDequeue) < 30*time.Second {
+		if !lastDequeue.IsZero() && time.Since(lastDequeue) < 15*time.Second {
 			return conversation.StatusRunning
 		}
-		if !lastRecordAt.IsZero() && time.Since(lastRecordAt) < 30*time.Second {
+		if !lastRecordAt.IsZero() && time.Since(lastRecordAt) < 15*time.Second {
 			return conversation.StatusRunning
 		}
 		return conversation.StatusStopped
 	}
-	if !lastDequeue.IsZero() && time.Since(lastDequeue) < 30*time.Second {
+	if !lastDequeue.IsZero() && time.Since(lastDequeue) < 15*time.Second {
 		return conversation.StatusRunning
 	}
 	if lastType == "internal_error" {

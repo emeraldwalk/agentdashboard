@@ -62,7 +62,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	// Watch every project subdirectory and its subagents dir.
 	w.addSubdirs(fw)
 
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	for {
