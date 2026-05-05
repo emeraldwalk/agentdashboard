@@ -2,10 +2,10 @@
 
 ## Checklist
 
-- [ ] Extend `findContainerForVolume` to query stopped containers via `?all=1`
-- [ ] Add `readFilesViaTemporaryContainer` to spin up a short-lived container for stopped containers
-- [ ] Wire stopped-container path into `discover`
-- [ ] Skip volumes already handled by a running container
+- [x] Extend `findContainerForVolume` to query stopped containers via `?all=1`
+- [x] Add `readFilesViaTemporaryContainer` to spin up a short-lived container for stopped containers
+- [x] Wire stopped-container path into `discover`
+- [x] Skip volumes already handled by a running container
 
 ## Background
 

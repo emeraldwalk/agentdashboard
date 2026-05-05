@@ -18,9 +18,10 @@ import (
 
 // Source discovers and tails Claude JSONL logs from Docker containers.
 type Source struct {
-	socketPath string
-	handler    watcher.Handler
-	client     *http.Client
+	socketPath      string
+	handler         watcher.Handler
+	client          *http.Client
+	ingestedVolumes map[string]struct{} // stopped-container volumes already fully read
 }
 
 // New creates a Source that reads from the Docker socket.
@@ -32,7 +33,12 @@ func New(socketPath string, handler watcher.Handler) *Source {
 			},
 		},
 	}
-	return &Source{socketPath: socketPath, handler: handler, client: client}
+	return &Source{
+		socketPath:      socketPath,
+		handler:         handler,
+		client:          client,
+		ingestedVolumes: make(map[string]struct{}),
+	}
 }
 
 // Run discovers containers with claude-code-config-* volumes every 30 seconds until ctx is cancelled.
@@ -61,11 +67,23 @@ func (s *Source) discover(ctx context.Context) {
 
 	for _, vol := range volumes {
 		project := strings.TrimPrefix(vol, "claude-code-config-")
-		containerID, err := s.findContainerForVolume(ctx, vol)
-		if err != nil || containerID == "" {
+		containerID, running, err := s.findContainerForVolume(ctx, vol)
+		if err != nil {
+			log.Printf("docker: find container for %s: %v", vol, err)
 			continue
 		}
-		s.tailFilesInContainer(ctx, containerID, project)
+
+		if running {
+			// Always re-read running containers — they may have new sessions.
+			s.tailFilesInContainer(ctx, containerID, project, "/home/vscode/.claude/projects")
+		} else {
+			// Skip stopped volumes already fully ingested.
+			if _, done := s.ingestedVolumes[vol]; done {
+				continue
+			}
+			s.readFilesViaTemporaryContainer(ctx, vol, project)
+			s.ingestedVolumes[vol] = struct{}{}
+		}
 	}
 }
 
@@ -98,41 +116,105 @@ func (s *Source) listClaudeVolumes(ctx context.Context) ([]string, error) {
 	return names, nil
 }
 
-func (s *Source) findContainerForVolume(ctx context.Context, volumeName string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "http://docker/containers/json", nil)
+// findContainerForVolume returns the container ID and whether it is running.
+// Queries all containers (running and stopped) via ?all=1.
+// Returns an empty containerID if no container has the volume mounted.
+func (s *Source) findContainerForVolume(ctx context.Context, volumeName string) (containerID string, running bool, err error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", "http://docker/containers/json?all=1", nil)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	defer resp.Body.Close()
 
 	var containers []struct {
 		ID     string `json:"Id"`
+		State  string `json:"State"`
 		Mounts []struct {
 			Name string `json:"Name"`
 			Dest string `json:"Destination"`
 		} `json:"Mounts"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&containers); err != nil {
-		return "", err
+		return "", false, err
 	}
 
 	for _, c := range containers {
 		for _, m := range c.Mounts {
 			if m.Name == volumeName && m.Dest == "/home/vscode/.claude" {
-				return c.ID, nil
+				return c.ID, c.State == "running", nil
 			}
 		}
 	}
-	return "", nil
+	return "", false, nil
 }
 
-func (s *Source) tailFilesInContainer(ctx context.Context, containerID, project string) {
+func (s *Source) readFilesViaTemporaryContainer(ctx context.Context, volumeName, project string) {
+	createBody, _ := json.Marshal(map[string]any{
+		"Image": "alpine",
+		"Cmd":   []string{"sleep", "30"},
+		"HostConfig": map[string]any{
+			"Binds":      []string{volumeName + ":/data"},
+			"AutoRemove": false,
+		},
+	})
+	createReq, err := http.NewRequestWithContext(ctx, "POST", "http://docker/containers/create",
+		bytes.NewReader(createBody))
+	if err != nil {
+		log.Printf("docker: create temp container for %s: %v", volumeName, err)
+		return
+	}
+	createReq.Header.Set("Content-Type", "application/json")
+
+	createResp, err := s.client.Do(createReq)
+	if err != nil {
+		log.Printf("docker: create temp container for %s: %v", volumeName, err)
+		return
+	}
+	defer createResp.Body.Close()
+
+	var created struct {
+		ID string `json:"Id"`
+	}
+	if err := json.NewDecoder(createResp.Body).Decode(&created); err != nil || created.ID == "" {
+		log.Printf("docker: decode create response for %s: %v", volumeName, err)
+		return
+	}
+
+	defer func() {
+		delReq, err := http.NewRequestWithContext(ctx, "DELETE",
+			"http://docker/containers/"+created.ID+"?force=true", nil)
+		if err != nil {
+			log.Printf("docker: delete temp container %s: %v", created.ID[:12], err)
+			return
+		}
+		if _, err := s.client.Do(delReq); err != nil {
+			log.Printf("docker: delete temp container %s: %v", created.ID[:12], err)
+		}
+	}()
+
+	startReq, err := http.NewRequestWithContext(ctx, "POST",
+		"http://docker/containers/"+created.ID+"/start",
+		bytes.NewReader([]byte("{}")))
+	if err != nil {
+		log.Printf("docker: start temp container for %s: %v", volumeName, err)
+		return
+	}
+	startReq.Header.Set("Content-Type", "application/json")
+	if _, err := s.client.Do(startReq); err != nil {
+		log.Printf("docker: start temp container for %s: %v", volumeName, err)
+		return
+	}
+
+	s.tailFilesInContainer(ctx, created.ID, project, "/data/projects")
+}
+
+func (s *Source) tailFilesInContainer(ctx context.Context, containerID, project, findRoot string) {
 	output, err := s.execInContainer(ctx, containerID, []string{
-		"find", "/home/vscode/.claude/projects", "-name", "*.jsonl",
+		"find", findRoot, "-name", "*.jsonl",
 	})
 	if err != nil {
 		log.Printf("docker: find files in %s: %v", containerID[:12], err)

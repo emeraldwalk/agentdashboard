@@ -155,7 +155,7 @@ func projectFromPath(root, path string) string {
 	if home, err := os.UserHomeDir(); err == nil {
 		encodedHome := strings.TrimPrefix(strings.ReplaceAll(home, "/", "-"), "-")
 		dir = strings.TrimPrefix(dir, encodedHome)
-		dir = strings.TrimPrefix(dir, "-")
+		dir = strings.TrimLeft(dir, "-")
 	}
 
 	return dir

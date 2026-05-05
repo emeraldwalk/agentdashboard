@@ -34,6 +34,7 @@ func NewSQLiteStore(path string) (Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("conversation: open sqlite: %w", err)
 	}
+	db.SetMaxOpenConns(1)
 
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
@@ -43,29 +44,22 @@ func NewSQLiteStore(path string) (Store, error) {
 	return &sqliteStore{db: db}, nil
 }
 
-// Upsert inserts a new conversation or updates project, title, status, last_event_at.
-// started_at is set only on first insert.
+// Upsert inserts or updates a conversation, preserving started_at on conflict.
 func (s *sqliteStore) Upsert(c Conversation) error {
 	_, err := s.db.Exec(
-		`INSERT OR IGNORE INTO conversations (id, project, title, status, started_at, last_event_at)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO conversations (id, project, title, status, started_at, last_event_at)
+		 VALUES (?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(id) DO UPDATE SET
+		   project      = excluded.project,
+		   title        = excluded.title,
+		   status       = excluded.status,
+		   last_event_at = excluded.last_event_at`,
 		c.ID, c.Project, c.Title, string(c.Status),
 		c.StartedAt.UTC(), c.LastEventAt.UTC(),
 	)
 	if err != nil {
-		return fmt.Errorf("conversation: upsert insert: %w", err)
+		return fmt.Errorf("conversation: upsert: %w", err)
 	}
-
-	_, err = s.db.Exec(
-		`UPDATE conversations
-		 SET project = ?, title = ?, status = ?, last_event_at = ?
-		 WHERE id = ?`,
-		c.Project, c.Title, string(c.Status), c.LastEventAt.UTC(), c.ID,
-	)
-	if err != nil {
-		return fmt.Errorf("conversation: upsert update: %w", err)
-	}
-
 	return nil
 }
 
