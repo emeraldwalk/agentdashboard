@@ -22,9 +22,14 @@ type ingestHandler struct {
 	ctx    context.Context
 	store  conversation.Store
 	broker *dashboard.Broker
+	cache  map[string]conversation.Conversation
 }
 
 func (h *ingestHandler) OnConversation(c conversation.Conversation) {
+	if prev, ok := h.cache[c.ID]; ok && prev == c {
+		return
+	}
+	h.cache[c.ID] = c
 	if err := h.store.Upsert(c); err != nil {
 		log.Printf("upsert error: %v", err)
 		return
@@ -81,7 +86,7 @@ func main() {
 	broker := dashboard.NewBroker()
 	go broker.Run(ctx)
 
-	handler := &ingestHandler{ctx: ctx, store: store, broker: broker}
+	handler := &ingestHandler{ctx: ctx, store: store, broker: broker, cache: make(map[string]conversation.Conversation)}
 
 	// Start host filesystem watcher.
 	w, err := watcher.New(claudePath, handler)
