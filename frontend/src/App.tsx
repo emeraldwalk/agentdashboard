@@ -4,9 +4,23 @@ import type { Conversation } from "./types";
 import KanbanColumn from "./components/KanbanColumn";
 import type { ProjectGroup } from "./components/ProjectCard";
 
-function conversationColumn(conv: Conversation, now: number): "pending" | "done" | "archived" {
+function conversationColumn(
+  conv: Conversation,
+  now: number,
+  allConvs: Conversation[],
+): "pending" | "done" | "archived" {
   const age = now - new Date(conv.lastEventAt).getTime();
   if (age > 48 * 60 * 60 * 1000) return "archived";
+
+  if (conv.isSubagent) {
+    const parent = conv.parentId ? allConvs.find((c) => c.id === conv.parentId) : undefined;
+    if (parent) {
+      return conversationColumn(parent, now, allConvs);
+    }
+    // Orphaned sub-agent: age-based placement only, never Pending.
+    return "done";
+  }
+
   if (conv.status === "running" || conv.status === "waiting_input") return "pending";
   return "done";
 }
@@ -50,7 +64,7 @@ function App() {
     const done: Conversation[] = [];
     const archived: Conversation[] = [];
     for (const c of conversations) {
-      const col = conversationColumn(c, now);
+      const col = conversationColumn(c, now, conversations);
       if (col === "pending") pending.push(c);
       else if (col === "done") done.push(c);
       else archived.push(c);
@@ -73,7 +87,10 @@ function App() {
     es.addEventListener("conversation-update", (event: MessageEvent) => {
       const updated = JSON.parse(event.data as string) as Conversation;
       const idx = conversations.findIndex((c) => c.id === updated.id);
-      const next = idx === -1 ? [...conversations, updated] : conversations.map((c, i) => (i === idx ? updated : c));
+      const next =
+        idx === -1
+          ? [...conversations, updated]
+          : conversations.map((c, i) => (i === idx ? updated : c));
       setConversations(reconcile(next));
     });
 

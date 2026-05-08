@@ -2,15 +2,15 @@
 
 ## Implementation checklist
 
-- [ ] Add `IsSidechain bool` and `AgentID string` fields to `jsonl.Record`
-- [ ] Add `IsSubagent bool` and `ParentID string` fields to `conversation.Conversation` model
-- [ ] Add `is_subagent` and `parent_id` columns to SQLite schema with migration
-- [ ] Detect sub-agents and extract `ParentID` in `watcher.processFile` (host path pattern + JSONL)
-- [ ] Detect sub-agents and extract `ParentID` in `docker.processContainerFile` (path + JSONL)
-- [ ] Add `IsSubagentRecords` and `ParentIDFromRecords` helpers to `internal/jsonl/parser.go`
-- [ ] Update `conversationColumn` in `App.tsx` to follow parent column instead of hardcoding `done`
-- [ ] Expose `isSubagent` and `parentId` in the JSON API response and `Conversation` TS type
-- [ ] Update `ConversationCard` to visually distinguish sub-agents (small label)
+- [x] Add `IsSidechain bool` and `AgentID string` fields to `jsonl.Record`
+- [x] Add `IsSubagent bool` and `ParentID string` fields to `conversation.Conversation` model
+- [x] Add `is_subagent` and `parent_id` columns to SQLite schema with migration
+- [x] Detect sub-agents and extract `ParentID` in `watcher.processFile` (host path pattern + JSONL)
+- [x] Detect sub-agents and extract `ParentID` in `docker.processContainerFile` (path + JSONL)
+- [x] Add `IsSubagentRecords` and `ParentIDFromRecords` helpers to `internal/jsonl/parser.go`
+- [x] Update `conversationColumn` in `App.tsx` to follow parent column instead of hardcoding `done`
+- [x] Expose `isSubagent` and `parentId` in the JSON API response and `Conversation` TS type
+- [x] Update `ConversationCard` to visually distinguish sub-agents (small label)
 
 ---
 

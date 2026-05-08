@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/emeraldwalk/agentdashboard/internal/conversation"
@@ -104,6 +105,31 @@ func DeriveStatus(records []Record) conversation.Status {
 		return conversation.StatusFailed
 	}
 	return conversation.StatusStopped
+}
+
+// IsSubagentRecords returns true when id has the "agent-" prefix and at least
+// one record carries isSidechain: true.
+func IsSubagentRecords(id string, records []Record) bool {
+	if !strings.HasPrefix(id, "agent-") {
+		return false
+	}
+	for _, r := range records {
+		if r.IsSidechain {
+			return true
+		}
+	}
+	return false
+}
+
+// ParentIDFromRecords returns the parent session ID from the first sub-agent
+// record's sessionId field. Returns "" if no isSidechain record is found.
+func ParentIDFromRecords(records []Record) string {
+	for _, r := range records {
+		if r.IsSidechain && r.SessionID != "" {
+			return r.SessionID
+		}
+	}
+	return ""
 }
 
 // DeriveLastEventAt returns the timestamp of the most recent actionable record.

@@ -4,12 +4,12 @@
 
 | Plan | Description | Status |
 | ---- | ----------- | ------ |
-| [13 — Sub-agent Identification](pending/13-subagent-identification.md) | Detect sub-agents via path nesting + JSONL fields; route them to Done, never Pending | 🔲 Ready |
 
 ## Completed
 
 | Plan                                                                 | Description                                                                           | Status  |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------- |
+| [13 — Sub-agent Identification](implemented/13-subagent-identification.md) | Detect sub-agents via path nesting + JSONL fields; route them to Done, never Pending | ✅ Done |
 | [12 — Kanban Board UI](implemented/12-kanban-board-ui.md) | Three-column kanban (Pending / Done / Archived); project cards split by session bucket | ✅ Done |
 | [11 — Project Status Cards UI](implemented/11-project-status-cards-ui.md) | Group by project into status cards; host vs. docker indicator | ✅ Done |
 | [10 — Stopped Container Discovery](implemented/10-stopped-container-discovery.md) | Ingest JSONL from stopped devcontainers via ephemeral alpine container | ✅ Done |

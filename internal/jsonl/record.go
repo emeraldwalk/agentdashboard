@@ -17,6 +17,10 @@ type Record struct {
 	PromptID   string   `json:"promptId"`
 	Message    *Message `json:"message,omitempty"`
 
+	// sub-agent identification
+	IsSidechain bool   `json:"isSidechain"`
+	AgentID     string `json:"agentId"`
+
 	// type == "ai-title" — note field name is "aiTitle" not "title"
 	AITitle string `json:"aiTitle,omitempty"`
 

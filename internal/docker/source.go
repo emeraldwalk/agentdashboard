@@ -274,6 +274,12 @@ func (s *Source) processContainerFile(ctx context.Context, containerID, path, pr
 		}
 	}
 
+	isSubagent := isSubagentPath(path) || jsonl.IsSubagentRecords(sessionID, records)
+	parentID := parentIDFromPath(path)
+	if parentID == "" {
+		parentID = jsonl.ParentIDFromRecords(records)
+	}
+
 	startedAt := records[0].Timestamp
 	lastEventAt := jsonl.DeriveLastEventAt(records)
 	if lastEventAt.IsZero() {
@@ -288,8 +294,28 @@ func (s *Source) processContainerFile(ctx context.Context, containerID, path, pr
 		Source:      conversation.SourceDocker,
 		StartedAt:   startedAt,
 		LastEventAt: lastEventAt,
+		IsSubagent:  isSubagent,
+		ParentID:    parentID,
 	}
 	s.handler.OnConversation(c)
+}
+
+// isSubagentPath reports whether path is a sub-agent JSONL file.
+func isSubagentPath(path string) bool {
+	return strings.Contains(path, "/subagents/")
+}
+
+// parentIDFromPath extracts the parent session UUID from a subagent path.
+// Path form: .../projects/<project>/<parent-uuid>/subagents/<agent-id>.jsonl
+// Returns "" if the path is not a subagent path.
+func parentIDFromPath(path string) string {
+	idx := strings.Index(path, "/subagents/")
+	if idx == -1 {
+		return ""
+	}
+	before := path[:idx]
+	parts := strings.Split(before, "/")
+	return parts[len(parts)-1]
 }
 
 func (s *Source) execInContainer(ctx context.Context, containerID string, cmd []string) (string, error) {

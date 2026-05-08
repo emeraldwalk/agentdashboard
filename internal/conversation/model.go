@@ -26,4 +26,6 @@ type Conversation struct {
 	Source      Source    `json:"source"`
 	StartedAt   time.Time `json:"startedAt"`
 	LastEventAt time.Time `json:"lastEventAt"`
+	IsSubagent  bool      `json:"isSubagent"`
+	ParentID    string    `json:"parentId"`
 }

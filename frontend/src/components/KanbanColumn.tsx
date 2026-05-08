@@ -16,7 +16,10 @@ function KanbanColumn(props: KanbanColumnProps) {
           {props.groups.length}
         </span>
       </div>
-      <Show when={props.groups.length > 0} fallback={<p style="color: #555; font-size: 0.85em; margin: 0;">No sessions</p>}>
+      <Show
+        when={props.groups.length > 0}
+        fallback={<p style="color: #555; font-size: 0.85em; margin: 0;">No sessions</p>}
+      >
         <For each={props.groups}>{(group) => <ProjectCard group={group} />}</For>
       </Show>
     </div>

@@ -6,4 +6,6 @@ export interface Conversation {
   source: "host" | "docker";
   startedAt: string;
   lastEventAt: string;
+  isSubagent: boolean;
+  parentId: string;
 }

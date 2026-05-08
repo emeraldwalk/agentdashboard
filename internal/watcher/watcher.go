@@ -133,6 +133,12 @@ func (w *Watcher) processFile(path string) {
 		}
 	}
 
+	isSubagent := isSubagentPath(path) || jsonl.IsSubagentRecords(sessionID, records)
+	parentID := parentIDFromPath(path)
+	if parentID == "" {
+		parentID = jsonl.ParentIDFromRecords(records)
+	}
+
 	startedAt := records[0].Timestamp
 	lastEventAt := jsonl.DeriveLastEventAt(records)
 	if lastEventAt.IsZero() {
@@ -147,6 +153,8 @@ func (w *Watcher) processFile(path string) {
 		Source:      conversation.SourceHost,
 		StartedAt:   startedAt,
 		LastEventAt: lastEventAt,
+		IsSubagent:  isSubagent,
+		ParentID:    parentID,
 	}
 	w.handler.OnConversation(c)
 }
@@ -181,4 +189,23 @@ func projectFromPath(root, path string) string {
 func sessionIDFromPath(path string) string {
 	base := filepath.Base(path)
 	return strings.TrimSuffix(base, ".jsonl")
+}
+
+// isSubagentPath reports whether path is a sub-agent JSONL file.
+func isSubagentPath(path string) bool {
+	return strings.Contains(filepath.ToSlash(path), "/subagents/")
+}
+
+// parentIDFromPath extracts the parent session UUID from a subagent path.
+// Path form: .../projects/<project>/<parent-uuid>/subagents/<agent-id>.jsonl
+// Returns "" if the path is not a subagent path.
+func parentIDFromPath(path string) string {
+	slash := filepath.ToSlash(path)
+	idx := strings.Index(slash, "/subagents/")
+	if idx == -1 {
+		return ""
+	}
+	before := slash[:idx]
+	parts := strings.Split(before, "/")
+	return parts[len(parts)-1]
 }

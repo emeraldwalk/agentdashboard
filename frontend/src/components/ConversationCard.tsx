@@ -58,6 +58,9 @@ function ConversationCard(props: Props) {
     <div>
       <small>{props.conversation.project}</small>
       <strong>{displayName()}</strong>
+      {props.conversation.isSubagent && (
+        <span style="font-size: 0.7em; opacity: 0.6;">sub-agent</span>
+      )}
       <span style={badgeStyle()}>{props.conversation.status}</span>
       <span>{lastSeen()}</span>
     </div>
