@@ -4,6 +4,7 @@
 
 | Plan | Description | Status |
 | ---- | ----------- | ------ |
+| [13 — Sub-agent Identification](pending/13-subagent-identification.md) | Detect sub-agents via path nesting + JSONL fields; route them to Done, never Pending | 🔲 Ready |
 
 ## Completed
 
