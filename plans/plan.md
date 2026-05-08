@@ -4,6 +4,7 @@
 
 | Plan | Description | Status |
 | ---- | ----------- | ------ |
+| [12 — Kanban Board UI](pending/12-kanban-board-ui.md) | Three-column kanban (Pending / Done / Archived); project cards split by session bucket | 🔲 Ready |
 
 ## Completed
 
