@@ -25,7 +25,9 @@ Reference reading (not a fork target):
 
 **PlatformIO** — not Arduino IDE. VS Code extension + `pio` CLI, fully headless.
 
-Install: `pip install platformio` or via VS Code PlatformIO extension.
+- **Host (flashing):** install the [PlatformIO IDE VS Code extension](https://marketplace.visualstudio.com/items?itemName=platformio.platformio-ide) — it bundles PlatformIO Core and esptool automatically. No separate `pip install` needed.
+- **Devcontainer (compile + test):** `pip install platformio` in `postCreateCommand.sh` — gives agents and the terminal `pio` for everything except USB flashing.
+- **USB drivers (host only):** macOS — usually nothing needed. Linux — add user to `dialout` group. Windows — install CH340/CP2102 driver for the XIAO's USB chip.
 
 Key commands:
 ```bash

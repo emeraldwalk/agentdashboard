@@ -22,6 +22,10 @@ if [ -f frontend/package.json ]; then
 fi
 
 
+# Install PlatformIO CLI (compile + test; flashing requires USB on host)
+pip install --quiet platformio
+
+
 # Setup agents
 sudo chown -R vscode:vscode /home/vscode/.claude
 
