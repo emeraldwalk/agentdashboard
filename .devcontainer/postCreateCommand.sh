@@ -23,7 +23,9 @@ fi
 
 
 # Install PlatformIO CLI (compile + test; flashing requires USB on host)
-pip install --quiet platformio
+sudo apt-get update -qq
+sudo apt-get install -y python3-pip
+python3 -m pip install --break-system-packages --quiet platformio
 
 
 # Setup agents
