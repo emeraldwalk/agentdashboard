@@ -4,6 +4,9 @@
 
 | Plan | Description | Status |
 | ---- | ----------- | ------ |
+| [14 — ePaper Firmware](pending/14-epaper-firmware.md) | PlatformIO Arduino firmware for reTerminal E1001: Wi-Fi provisioning, HTTP POST `/image` endpoint, GxEPD2 render | Ready |
+| [15 — ePaper Image Generator](pending/15-epaper-image-generator.md) | Go `internal/epaper` package: render session summary to 800×480 PNG using `fogleman/gg` | Ready (after 14) |
+| [16 — ePaper Sender](pending/16-epaper-sender.md) | Go sender: throttle + change detection, POST PNG to device; `--epaper-addr` CLI flag | Ready (after 15) |
 
 ## Completed
 
