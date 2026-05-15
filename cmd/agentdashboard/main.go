@@ -11,10 +11,12 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/emeraldwalk/agentdashboard/internal/conversation"
 	"github.com/emeraldwalk/agentdashboard/internal/dashboard"
 	"github.com/emeraldwalk/agentdashboard/internal/docker"
+	"github.com/emeraldwalk/agentdashboard/internal/epaper"
 	"github.com/emeraldwalk/agentdashboard/internal/watcher"
 )
 
@@ -23,6 +25,7 @@ type ingestHandler struct {
 	store  conversation.Store
 	broker *dashboard.Broker
 	cache  map[string]conversation.Conversation
+	notify func()
 }
 
 func (h *ingestHandler) OnConversation(c conversation.Conversation) {
@@ -36,6 +39,41 @@ func (h *ingestHandler) OnConversation(c conversation.Conversation) {
 	}
 	data, _ := json.Marshal(c)
 	h.broker.Publish(h.ctx, data)
+	if h.notify != nil {
+		h.notify()
+	}
+}
+
+// conversationSummaryProvider implements epaper.SummaryProvider using the conversation store.
+type conversationSummaryProvider struct {
+	store conversation.Store
+}
+
+func (p *conversationSummaryProvider) Summary() epaper.SessionSummary {
+	convs, err := p.store.List()
+	if err != nil {
+		return epaper.SessionSummary{}
+	}
+	var summary epaper.SessionSummary
+	seen := make(map[string]struct{})
+	for _, c := range convs {
+		if c.IsSubagent {
+			continue
+		}
+		switch c.Status {
+		case conversation.StatusRunning:
+			summary.ActiveSessions++
+		case conversation.StatusWaiting:
+			summary.PendingSessions++
+		case conversation.StatusStopped, conversation.StatusFailed:
+			summary.DoneSessions++
+		}
+		if _, ok := seen[c.Project]; !ok && len(summary.RecentProjects) < 5 {
+			seen[c.Project] = struct{}{}
+			summary.RecentProjects = append(summary.RecentProjects, c.Project)
+		}
+	}
+	return summary
 }
 
 func expandHome(path string) (string, error) {
@@ -54,6 +92,7 @@ func main() {
 	dashboardAddr := flag.String("dashboard-addr", ":8080", "Dashboard HTTP listen address")
 	claudeDir := flag.String("claude-dir", "~/.claude/projects", "Path to host Claude projects directory")
 	dockerSocket := flag.String("docker-socket", "/var/run/docker.sock", "Docker socket path")
+	epaperAddr := flag.String("epaper-addr", "", "ePaper device address (e.g. http://192.168.1.50); omit to disable")
 	flag.Parse()
 
 	dbPath, err := expandHome(*dbFlag)
@@ -87,6 +126,16 @@ func main() {
 	go broker.Run(ctx)
 
 	handler := &ingestHandler{ctx: ctx, store: store, broker: broker, cache: make(map[string]conversation.Conversation)}
+
+	if *epaperAddr != "" {
+		sender := epaper.NewSender(epaper.SenderConfig{
+			DeviceAddr:  *epaperAddr,
+			MinInterval: 60 * time.Second,
+			MaxInterval: 5 * time.Minute,
+		}, &conversationSummaryProvider{store: store}, epaper.Renderer{})
+		go sender.Start(ctx)
+		handler.notify = sender.NotifyChange
+	}
 
 	// Start host filesystem watcher.
 	w, err := watcher.New(claudePath, handler)

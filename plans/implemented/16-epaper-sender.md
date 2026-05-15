@@ -2,12 +2,12 @@
 
 ## Checklist
 
-- [ ] Create `internal/epaper/sender.go`
-- [ ] Implement `Sender` with throttle + change detection
-- [ ] Wire `Sender` into the existing session change notification path
-- [ ] Add `--epaper-addr` CLI flag to `cmd/agentdashboard/main.go`
-- [ ] Write unit tests for throttle logic
-- [ ] Document config in `--help` output
+- [x] Create `internal/epaper/sender.go`
+- [x] Implement `Sender` with throttle + change detection
+- [x] Wire `Sender` into the existing session change notification path
+- [x] Add `--epaper-addr` CLI flag to `cmd/agentdashboard/main.go`
+- [x] Write unit tests for throttle logic
+- [x] Document config in `--help` output
 
 ## Context
 

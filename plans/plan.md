@@ -4,12 +4,12 @@
 
 | Plan | Description | Status |
 | ---- | ----------- | ------ |
-| [16 — ePaper Sender](pending/16-epaper-sender.md) | Go sender: throttle + change detection, POST PNG to device; `--epaper-addr` CLI flag | Ready (after 15) |
 
 ## Completed
 
 | Plan                                                                 | Description                                                                           | Status  |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------- |
+| [16 — ePaper Sender](implemented/16-epaper-sender.md) | Go sender: throttle + change detection, POST PNG to device; `--epaper-addr` CLI flag | ✅ Done |
 | [15 — ePaper Image Generator](implemented/15-epaper-image-generator.md) | Go `internal/epaper` package: render session summary to 800×480 PNG using `fogleman/gg` | ✅ Done |
 | [14 — ePaper Firmware](implemented/14-epaper-firmware.md) | PlatformIO Arduino firmware for reTerminal E1001: Wi-Fi provisioning, HTTP POST `/image` endpoint, GxEPD2 render | ✅ Done |
 | [13 — Sub-agent Identification](implemented/13-subagent-identification.md) | Detect sub-agents via path nesting + JSONL fields; route them to Done, never Pending | ✅ Done |
