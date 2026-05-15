@@ -42,7 +42,7 @@
   "postCreateCommand": ".devcontainer/postCreateCommand.sh",
   "customizations": {
     "vscode": {
-      "extensions": ["anthropic.claude-code", "oxc.oxc-vscode", "platformio.platformio-ide"],
+      "extensions": ["anthropic.claude-code", "oxc.oxc-vscode"],
 
       "settings": {
         // "Yolo" permissions for Claude
