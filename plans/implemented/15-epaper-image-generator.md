@@ -2,12 +2,12 @@
 
 ## Checklist
 
-- [ ] Create `internal/epaper/` package
-- [ ] Implement `Renderer` — draws session summary to an 800×480 `image.RGBA` using `fogleman/gg`
-- [ ] Implement `Dither` — converts RGBA → 1-bit BMP (Floyd–Steinberg)
-- [ ] Implement `Encode` — writes final PNG to `[]byte` (or 1-bit BMP if firmware requires it)
-- [ ] Write unit tests: render smoke test, dither correctness, encode round-trip
-- [ ] Add `go.mod` dependency: `github.com/fogleman/gg`
+- [x] Create `internal/epaper/` package
+- [x] Implement `Renderer` — draws session summary to an 800×480 `image.RGBA` using `fogleman/gg`
+- [x] Implement `Dither` — converts RGBA → 1-bit BMP (Floyd–Steinberg)
+- [x] Implement `Encode` — writes final PNG to `[]byte` (or 1-bit BMP if firmware requires it)
+- [x] Write unit tests: render smoke test, dither correctness, encode round-trip
+- [x] Add `go.mod` dependency: `github.com/fogleman/gg`
 
 ## Context
 
