@@ -110,6 +110,27 @@ On state change: if `now - lastSent > minInterval`, send immediately; otherwise,
 - [Getting Started with reTerminal E1001 — Seeed Wiki](https://wiki.seeedstudio.com/getting_started_with_reterminal_e1001/)
 - [Work with TRMNL — Seeed Wiki](https://wiki.seeedstudio.com/reterminal_e10xx_trmnl/)
 - [GxEPD2](https://github.com/ZinggJM/GxEPD2) — Seeed-recommended ePaper display library for E1001 (use this)
+
+## Confirmed display constructor (from Handy4ndy/Handy-reTerminal-E1001)
+
+```cpp
+#define EPD_SCK_PIN  7
+#define EPD_MOSI_PIN 9
+#define EPD_CS_PIN   10
+#define EPD_DC_PIN   11
+#define EPD_RES_PIN  12
+#define EPD_BUSY_PIN 13
+
+SPIClass hspi(HSPI);
+GxEPD2_BW<GxEPD2_750_GDEY075T7, GxEPD2_750_GDEY075T7::HEIGHT> display(
+    GxEPD2_750_GDEY075T7(EPD_CS_PIN, EPD_DC_PIN, EPD_RES_PIN, EPD_BUSY_PIN));
+
+// In setup():
+hspi.begin(EPD_SCK_PIN, -1, EPD_MOSI_PIN, -1);
+display.epd2.selectSPI(hspi, SPISettings(2000000, MSBFIRST, SPI_MODE0));
+```
+
+Display driver class: `GxEPD2_750_GDEY075T7` (not `GxEPD2_750_T7`).
 - [Handy4ndy/Handy-reTerminal-E1001](https://github.com/Handy4ndy/Handy-reTerminal-E1001) — community GxEPD2 sketches for E1001; good display driver reference
 - [omeriko9/E1001-reTerminal-Photo-Album](https://github.com/omeriko9/E1001-reTerminal-Photo-Album) — hobby project with HTTP POST endpoint; read for patterns only (1 star, unreviewed)
 - [Frans-Willem/reterminal_e100x](https://github.com/Frans-Willem/reterminal_e100x) — experimental Rust firmware; pull model, E1001 support unconfirmed

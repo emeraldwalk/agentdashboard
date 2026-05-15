@@ -11,3 +11,8 @@ frontend/dist/
 *.dylib
 *.test
 *.out
+
+# PlatformIO build artifacts
+firmware/epaper-display/.pio/
+firmware/epaper-display/.vscode/
+firmware/epaper-display/secrets.ini

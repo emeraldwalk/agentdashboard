@@ -2,14 +2,14 @@
 
 ## Checklist
 
-- [ ] Create PlatformIO project at `firmware/epaper-display/`
-- [ ] Configure `platformio.ini` for XIAO-ESP32S3 with GxEPD2 dependency
-- [ ] Implement Wi-Fi provisioning (captive portal on first boot, NVS persistence)
-- [ ] Implement HTTP server with `POST /image` endpoint
-- [ ] Implement image decode + GxEPD2 render pipeline
-- [ ] Implement serial logging for all key events
-- [ ] Write test script at `firmware/epaper-display/scripts/test-push.sh`
-- [ ] Update `seeed-studio-ref.md` with confirmed display constructor params
+- [x] Create PlatformIO project at `firmware/epaper-display/`
+- [x] Configure `platformio.ini` for XIAO-ESP32S3 with GxEPD2 dependency
+- [x] Implement Wi-Fi provisioning (captive portal on first boot, NVS persistence)
+- [x] Implement HTTP server with `POST /image` endpoint
+- [x] Implement image decode + GxEPD2 render pipeline
+- [x] Implement serial logging for all key events
+- [x] Write test script at `firmware/epaper-display/scripts/test-push.sh`
+- [x] Update `seeed-studio-ref.md` with confirmed display constructor params
 
 ## Context
 
