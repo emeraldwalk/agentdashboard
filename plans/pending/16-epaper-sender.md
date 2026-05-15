@@ -102,6 +102,8 @@ Body: PNG bytes from EncodePNG()
 On non-200 response: log error, do not retry immediately. Normal throttle applies to next attempt.
 On network error: log error, same behavior.
 
+**Failure must never crash or stop the tool.** The ePaper sender runs as an optional background goroutine. All errors (network failure, timeout, non-200, encode failure) must be caught, logged, and discarded. The send loop continues running and will attempt again on the next `NotifyChange` or `MaxInterval` tick.
+
 ### `session.Store` addition
 
 Add to `internal/session/store.go` (or a new method file):
