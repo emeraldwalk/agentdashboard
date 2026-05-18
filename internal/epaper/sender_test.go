@@ -31,7 +31,7 @@ func TestSender_ThrottleCoalesces(t *testing.T) {
 	defer srv.Close()
 
 	const minInterval = 200 * time.Millisecond
-	provider := &fakeSummaryProvider{s: SessionSummary{ActiveSessions: 1}}
+	provider := &fakeSummaryProvider{s: SessionSummary{PendingSessions: 1}}
 	sender := NewSender(SenderConfig{
 		DeviceAddr:  srv.URL,
 		MinInterval: minInterval,
@@ -66,7 +66,7 @@ func TestSender_MaxInterval(t *testing.T) {
 	defer srv.Close()
 
 	const maxInterval = 200 * time.Millisecond
-	provider := &fakeSummaryProvider{s: SessionSummary{ActiveSessions: 2}}
+	provider := &fakeSummaryProvider{s: SessionSummary{PendingSessions: 2}}
 	sender := NewSender(SenderConfig{
 		DeviceAddr:  srv.URL,
 		MinInterval: 10 * time.Second,
@@ -94,7 +94,7 @@ func TestSender_SkipsIdenticalSummary(t *testing.T) {
 	defer srv.Close()
 
 	const minInterval = 50 * time.Millisecond
-	provider := &fakeSummaryProvider{s: SessionSummary{ActiveSessions: 3}}
+	provider := &fakeSummaryProvider{s: SessionSummary{PendingSessions: 3}}
 	sender := NewSender(SenderConfig{
 		DeviceAddr:  srv.URL,
 		MinInterval: minInterval,

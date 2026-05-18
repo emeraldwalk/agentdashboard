@@ -8,7 +8,7 @@ import (
 
 func TestEncodePNG_RoundTrip(t *testing.T) {
 	r := Renderer{}
-	img := r.Render(SessionSummary{ActiveSessions: 1, PendingSessions: 2, DoneSessions: 3})
+	img := r.Render(SessionSummary{PendingSessions: 1, DoneSessions: 2, ArchivedSessions: 3})
 
 	data, err := EncodePNG(img)
 	if err != nil {

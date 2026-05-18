@@ -17,10 +17,12 @@ const (
 )
 
 type SessionSummary struct {
-	ActiveSessions  int
-	PendingSessions int
-	DoneSessions    int
-	RecentProjects  []string // up to 5, truncated to fit
+	PendingSessions  int
+	DoneSessions     int
+	ArchivedSessions int
+	PendingProjects  []string
+	DoneProjects     []string
+	ArchivedProjects []string
 }
 
 type Renderer struct{}
@@ -46,16 +48,16 @@ func loadFont(points float64) font.Face {
 func (r Renderer) Render(s SessionSummary) *image.RGBA {
 	dc := gg.NewContext(Width, Height)
 
-	// Black background
-	dc.SetRGB(0, 0, 0)
+	// White background
+	dc.SetRGB(1, 1, 1)
 	dc.Clear()
 
-	// Header bar
-	dc.SetRGB(0.15, 0.15, 0.15)
+	// Header bar (black)
+	dc.SetRGB(0, 0, 0)
 	dc.DrawRectangle(0, 0, Width, 60)
 	dc.Fill()
 
-	// Header text
+	// Header text (white on black)
 	dc.SetRGB(1, 1, 1)
 	if f := loadFont(24); f != nil {
 		dc.SetFontFace(f)
@@ -70,9 +72,9 @@ func (r Renderer) Render(s SessionSummary) *image.RGBA {
 		label string
 		count int
 	}{
-		{"Active", s.ActiveSessions},
 		{"Pending", s.PendingSessions},
 		{"Done", s.DoneSessions},
+		{"Archived", s.ArchivedSessions},
 	}
 
 	const badgeW = 160.0
@@ -85,11 +87,13 @@ func (r Renderer) Render(s SessionSummary) *image.RGBA {
 	for i, b := range badges {
 		x := startX + float64(i)*(badgeW+gap)
 
-		dc.SetRGB(0.2, 0.2, 0.2)
+		// Badge outline (black border, white fill)
+		dc.SetRGB(0, 0, 0)
 		dc.DrawRoundedRectangle(x, badgeY, badgeW, badgeH, 10)
-		dc.Fill()
+		dc.SetLineWidth(2)
+		dc.Stroke()
 
-		dc.SetRGB(1, 1, 1)
+		dc.SetRGB(0, 0, 0)
 
 		if f := loadFont(36); f != nil {
 			dc.SetFontFace(f)
@@ -106,29 +110,48 @@ func (r Renderer) Render(s SessionSummary) *image.RGBA {
 	}
 
 	// Divider
-	dc.SetRGB(0.3, 0.3, 0.3)
+	dc.SetRGB(0, 0, 0)
 	dc.DrawRectangle(20, 195, float64(Width)-40, 1)
 	dc.Fill()
 
-	// Recent projects heading
-	dc.SetRGB(0.6, 0.6, 0.6)
-	if f := loadFont(14); f != nil {
-		dc.SetFontFace(f)
-	}
-	dc.DrawString("Recent Projects", 20, 222)
+	// Three project columns: Pending | Done | Archived
+	const colY = 210.0
+	const colRowH = 28.0
+	const maxRows = 8
+	const colW = float64(Width) / 3
 
-	// Project list
-	dc.SetRGB(1, 1, 1)
-	if f := loadFont(18); f != nil {
+	cols := []struct {
+		label    string
+		projects []string
+	}{
+		{"PENDING", s.PendingProjects},
+		{"DONE", s.DoneProjects},
+		{"ARCHIVED", s.ArchivedProjects},
+	}
+
+	if f := loadFont(13); f != nil {
 		dc.SetFontFace(f)
 	}
-	projects := s.RecentProjects
-	if len(projects) > 5 {
-		projects = projects[:5]
-	}
-	for i, p := range projects {
-		y := 255.0 + float64(i)*42
-		dc.DrawString(p, 30, y)
+	for i, col := range cols {
+		x := float64(i)*colW + 16
+
+		dc.SetRGB(0, 0, 0)
+		dc.DrawString(col.label, x, colY+14)
+
+		// Underline the column header
+		dc.DrawRectangle(x, colY+18, colW-20, 1)
+		dc.Fill()
+
+		if f := loadFont(14); f != nil {
+			dc.SetFontFace(f)
+		}
+		projects := col.projects
+		if len(projects) > maxRows {
+			projects = projects[:maxRows]
+		}
+		for j, p := range projects {
+			dc.DrawString(p, x, colY+18+float64(j+1)*colRowH)
+		}
 	}
 
 	return dc.Image().(*image.RGBA)

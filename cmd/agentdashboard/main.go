@@ -54,24 +54,52 @@ func (p *conversationSummaryProvider) Summary() epaper.SessionSummary {
 	if err != nil {
 		return epaper.SessionSummary{}
 	}
-	var summary epaper.SessionSummary
-	seen := make(map[string]struct{})
+	now := time.Now()
+	const archiveAge = 48 * time.Hour
+
+	// Count unique projects per column, matching the HTML dashboard's logic.
+	// A project can appear in multiple columns (e.g. has both done and archived conversations).
+	pendingProjects := make(map[string]struct{})
+	doneProjects := make(map[string]struct{})
+	archivedProjects := make(map[string]struct{})
+	allProjects := make(map[string]struct{})
+
 	for _, c := range convs {
 		if c.IsSubagent {
 			continue
 		}
-		switch c.Status {
-		case conversation.StatusRunning:
-			summary.ActiveSessions++
-		case conversation.StatusWaiting:
-			summary.PendingSessions++
-		case conversation.StatusStopped, conversation.StatusFailed:
-			summary.DoneSessions++
+		allProjects[c.Project] = struct{}{}
+		if now.Sub(c.LastEventAt) >= archiveAge {
+			archivedProjects[c.Project] = struct{}{}
+		} else if c.Status == conversation.StatusRunning || c.Status == conversation.StatusWaiting {
+			pendingProjects[c.Project] = struct{}{}
+		} else {
+			doneProjects[c.Project] = struct{}{}
 		}
-		if _, ok := seen[c.Project]; !ok && len(summary.RecentProjects) < 5 {
-			seen[c.Project] = struct{}{}
-			summary.RecentProjects = append(summary.RecentProjects, c.Project)
+	}
+
+	var summary epaper.SessionSummary
+	summary.PendingSessions = len(pendingProjects)
+	summary.DoneSessions = len(doneProjects)
+	summary.ArchivedSessions = len(archivedProjects)
+
+	for project := range pendingProjects {
+		if len(summary.PendingProjects) >= 8 {
+			break
 		}
+		summary.PendingProjects = append(summary.PendingProjects, project)
+	}
+	for project := range doneProjects {
+		if len(summary.DoneProjects) >= 8 {
+			break
+		}
+		summary.DoneProjects = append(summary.DoneProjects, project)
+	}
+	for project := range archivedProjects {
+		if len(summary.ArchivedProjects) >= 8 {
+			break
+		}
+		summary.ArchivedProjects = append(summary.ArchivedProjects, project)
 	}
 	return summary
 }

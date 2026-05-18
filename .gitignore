@@ -12,6 +12,9 @@ frontend/dist/
 *.test
 *.out
 
+# ePaper debug images
+epaper-images/*.png
+
 # PlatformIO build artifacts
 firmware/epaper-display/.pio/
 firmware/epaper-display/.vscode/

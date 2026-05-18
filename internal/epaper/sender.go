@@ -5,6 +5,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -79,11 +80,16 @@ func (s *Sender) Start(ctx context.Context) {
 			return
 		}
 		img := s.renderer.Render(summary)
-		data, err := EncodePNG(img)
+		data, err := EncodePNG(Dither(img))
 		if err != nil {
 			log.Printf("epaper: encode error: %v", err)
 			return
 		}
+		path := "epaper-images/latest.png"
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			log.Printf("epaper: save image: %v", err)
+		}
+
 		url := s.cfg.DeviceAddr + "/image"
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
 		if err != nil {
@@ -133,15 +139,23 @@ func (s *Sender) Start(ctx context.Context) {
 }
 
 func summaryEqual(a, b SessionSummary) bool {
-	if a.ActiveSessions != b.ActiveSessions ||
-		a.PendingSessions != b.PendingSessions ||
+	if a.PendingSessions != b.PendingSessions ||
 		a.DoneSessions != b.DoneSessions ||
-		len(a.RecentProjects) != len(b.RecentProjects) {
+		a.ArchivedSessions != b.ArchivedSessions {
 		return false
 	}
-	for i := range a.RecentProjects {
-		if a.RecentProjects[i] != b.RecentProjects[i] {
+	for _, pair := range [][2][]string{
+		{a.PendingProjects, b.PendingProjects},
+		{a.DoneProjects, b.DoneProjects},
+		{a.ArchivedProjects, b.ArchivedProjects},
+	} {
+		if len(pair[0]) != len(pair[1]) {
 			return false
+		}
+		for i := range pair[0] {
+			if pair[0][i] != pair[1][i] {
+				return false
+			}
 		}
 	}
 	return true

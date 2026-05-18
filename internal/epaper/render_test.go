@@ -7,10 +7,10 @@ import (
 func TestRender_Dimensions(t *testing.T) {
 	r := Renderer{}
 	s := SessionSummary{
-		ActiveSessions:  3,
-		PendingSessions: 7,
-		DoneSessions:    42,
-		RecentProjects:  []string{"proj-a", "proj-b", "proj-c"},
+		PendingSessions:  3,
+		DoneSessions:     7,
+		ArchivedSessions: 42,
+		PendingProjects:   []string{"proj-a", "proj-b", "proj-c"},
 	}
 	img := r.Render(s)
 	if img == nil {
@@ -33,7 +33,7 @@ func TestRender_ZeroValues(t *testing.T) {
 func TestRender_TruncatesProjects(t *testing.T) {
 	r := Renderer{}
 	s := SessionSummary{
-		RecentProjects: []string{"a", "b", "c", "d", "e", "f", "g"},
+		PendingProjects: []string{"a", "b", "c", "d", "e", "f", "g"},
 	}
 	img := r.Render(s)
 	if img == nil {
