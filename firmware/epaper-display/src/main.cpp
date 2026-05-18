@@ -67,10 +67,15 @@ static int pngDraw(PNGDRAW *pDraw) {
 }
 
 // ---------------------------------------------------------------------------
-// Render framebuf to display
+// Render framebuf to display — full refresh or partial window
 // ---------------------------------------------------------------------------
-static void renderToDisplay() {
-    display.setFullWindow();
+static void renderToDisplay(int x, int y, int w, int h) {
+    bool full = (x == 0 && y == 0 && w == EPD_W && h == EPD_H);
+    if (full) {
+        display.setFullWindow();
+    } else {
+        display.setPartialWindow(x, y, w, h);
+    }
     display.firstPage();
     do {
         display.drawBitmap(0, 0, framebuf, EPD_W, EPD_H, GxEPD_BLACK);
@@ -82,8 +87,11 @@ static void renderToDisplay() {
 // Parse HTTP request line and headers from client.
 // Returns method, path, and Content-Length. Reads up to end of headers.
 // ---------------------------------------------------------------------------
-static bool parseRequest(WiFiClient &client, String &method, String &path, int &contentLength) {
+static bool parseRequest(WiFiClient &client, String &method, String &path,
+                         int &contentLength, int &posX, int &posY) {
     contentLength = 0;
+    posX = 0;
+    posY = 0;
     unsigned long start = millis();
 
     // Read request line
@@ -114,6 +122,10 @@ static bool parseRequest(WiFiClient &client, String &method, String &path, int &
             lower.toLowerCase();
             if (lower.startsWith("content-length:")) {
                 contentLength = line.substring(15).toInt();
+            } else if (lower.startsWith("x-position-x:")) {
+                posX = line.substring(13).toInt();
+            } else if (lower.startsWith("x-position-y:")) {
+                posY = line.substring(13).toInt();
             }
             line = "";
         } else if (c != '\r') {
@@ -145,9 +157,9 @@ static size_t readAll(WiFiClient &client, uint8_t *buf, size_t len) {
 // ---------------------------------------------------------------------------
 static void handleClient(WiFiClient &client) {
     String method, path;
-    int contentLength = 0;
+    int contentLength = 0, posX = 0, posY = 0;
 
-    if (!parseRequest(client, method, path, contentLength)) {
+    if (!parseRequest(client, method, path, contentLength, posX, posY)) {
         client.print("HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n");
         return;
     }
@@ -158,7 +170,7 @@ static void handleClient(WiFiClient &client) {
         memset(framebuf, 0x00, sizeof(framebuf));
         client.print("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK");
         Serial.println("[IMG]  Screen cleared");
-        renderToDisplay();
+        renderToDisplay(0, 0, EPD_W, EPD_H);
         return;
     }
 
@@ -176,9 +188,6 @@ static void handleClient(WiFiClient &client) {
             return;
         }
 
-        // Parse optional position headers — not available with raw TCP, default to 0,0
-        int originX = 0, originY = 0;
-
         int rc = png.openRAM(imgBuf, (int)got, pngDraw);
         if (rc != PNG_SUCCESS) {
             Serial.printf("[ERR]  PNG open failed: %d\n", rc);
@@ -188,21 +197,21 @@ static void handleClient(WiFiClient &client) {
 
         int w = png.getWidth();
         int h = png.getHeight();
-        Serial.printf("[IMG]  Decoded %dx%d at (%d,%d)\n", w, h, originX, originY);
+        Serial.printf("[IMG]  Decoded %dx%d at (%d,%d)\n", w, h, posX, posY);
 
-        if (originX < 0 || originY < 0 || originX + w > EPD_W || originY + h > EPD_H) {
+        if (posX < 0 || posY < 0 || posX + w > EPD_W || posY + h > EPD_H) {
             png.close();
             client.print("HTTP/1.1 400 Bad Request\r\nContent-Length: 13\r\n\r\nOut of bounds");
             return;
         }
 
-        blitX = originX;
-        blitY = originY;
+        blitX = posX;
+        blitY = posY;
         png.decode(nullptr, 0);
         png.close();
 
         client.print("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK");
-        renderToDisplay();
+        renderToDisplay(posX, posY, w, h);
         return;
     }
 

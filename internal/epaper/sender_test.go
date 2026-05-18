@@ -59,7 +59,8 @@ func TestSender_ThrottleCoalesces(t *testing.T) {
 	}
 }
 
-// TestSender_MaxInterval verifies a forced resend fires after MaxInterval with no NotifyChange.
+// TestSender_MaxInterval verifies that the MaxInterval tick sends once on first fire (when
+// lastSummary is zero) but not on subsequent ticks when the summary is unchanged.
 func TestSender_MaxInterval(t *testing.T) {
 	var count atomic.Int32
 	srv := newTestServer(t, &count)
@@ -77,12 +78,15 @@ func TestSender_MaxInterval(t *testing.T) {
 	defer cancel()
 	go sender.Start(ctx)
 
-	// Wait for two MaxInterval ticks.
-	time.Sleep(maxInterval*2 + 100*time.Millisecond)
+	// Wait for three MaxInterval ticks — only the first should POST (summary unchanged after that).
+	time.Sleep(maxInterval*3 + 100*time.Millisecond)
 
 	got := count.Load()
-	if got < 2 {
-		t.Errorf("expected at least 2 forced POSTs from MaxInterval, got %d", got)
+	if got == 0 {
+		t.Error("expected 1 POST on first MaxInterval tick, got 0")
+	}
+	if got > 1 {
+		t.Errorf("expected no repeat POSTs when summary unchanged, got %d", got)
 	}
 }
 

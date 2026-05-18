@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -18,7 +19,7 @@ type SummaryProvider interface {
 type SenderConfig struct {
 	DeviceAddr  string        // e.g. "http://192.168.1.50" — empty disables the sender
 	MinInterval time.Duration // minimum time between sends (default 60s)
-	MaxInterval time.Duration // force resend even without a change (default 5m)
+	MaxInterval time.Duration // resend if changed but not yet sent (default 1m)
 }
 
 // Sender watches for session changes, throttles, and POSTs PNG images to the ePaper device.
@@ -33,10 +34,10 @@ type Sender struct {
 // NewSender creates a Sender. If cfg.DeviceAddr is empty the Sender is a no-op.
 func NewSender(cfg SenderConfig, provider SummaryProvider, r Renderer) *Sender {
 	if cfg.MinInterval <= 0 {
-		cfg.MinInterval = 60 * time.Second
+		cfg.MinInterval = 10 * time.Second
 	}
 	if cfg.MaxInterval <= 0 {
-		cfg.MaxInterval = 5 * time.Minute
+		cfg.MaxInterval = 1 * time.Minute
 	}
 	return &Sender{
 		cfg:      cfg,
@@ -74,6 +75,17 @@ func (s *Sender) Start(ctx context.Context) {
 	maxTicker := time.NewTicker(s.cfg.MaxInterval)
 	defer maxTicker.Stop()
 
+	// Align the time ticker to the next whole minute on the wall clock.
+	now := time.Now()
+	timeAlign := time.NewTimer(now.Truncate(time.Minute).Add(time.Minute).Sub(now))
+	var timeTicker *time.Ticker
+	defer func() {
+		timeAlign.Stop()
+		if timeTicker != nil {
+			timeTicker.Stop()
+		}
+	}()
+
 	trySend := func(forced bool) {
 		summary := s.provider.Summary()
 		if !forced && summaryEqual(summary, lastSummary) {
@@ -85,8 +97,9 @@ func (s *Sender) Start(ctx context.Context) {
 			log.Printf("epaper: encode error: %v", err)
 			return
 		}
-		path := "epaper-images/latest.png"
-		if err := os.WriteFile(path, data, 0o644); err != nil {
+		const imgPath = "epaper-images/latest.png"
+		_ = os.MkdirAll("epaper-images", 0o755)
+		if err := os.WriteFile(imgPath, data, 0o644); err != nil {
 			log.Printf("epaper: save image: %v", err)
 		}
 
@@ -117,8 +130,15 @@ func (s *Sender) Start(ctx context.Context) {
 			return
 
 		case <-maxTicker.C:
-			trySend(true)
+			trySend(false)
 			scheduled = nil
+
+		case <-timeAlign.C:
+			s.sendTimePatch(ctx)
+			timeTicker = time.NewTicker(time.Minute)
+
+		case <-tickerChan(timeTicker):
+			s.sendTimePatch(ctx)
 
 		case <-s.notify:
 			now := time.Now()
@@ -136,6 +156,29 @@ func (s *Sender) Start(ctx context.Context) {
 			trySend(false)
 		}
 	}
+}
+
+func (s *Sender) sendTimePatch(ctx context.Context) {
+	img := s.renderer.RenderTimePatch()
+	data, err := EncodePNG(Dither(img))
+	if err != nil {
+		log.Printf("epaper: time patch encode: %v", err)
+		return
+	}
+	url := s.cfg.DeviceAddr + "/image"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
+	if err != nil {
+		log.Printf("epaper: time patch request: %v", err)
+		return
+	}
+	req.Header.Set("Content-Type", "image/png")
+	req.Header.Set("X-Position-X", strconv.Itoa(TimePatchX))
+	resp, err := s.client.Do(req)
+	if err != nil {
+		log.Printf("epaper: time patch POST: %v", err)
+		return
+	}
+	resp.Body.Close()
 }
 
 func summaryEqual(a, b SessionSummary) bool {
@@ -167,4 +210,12 @@ func scheduledChan(ch <-chan time.Time) <-chan time.Time {
 		return make(chan time.Time) // never fires
 	}
 	return ch
+}
+
+// tickerChan returns the ticker's channel, handling nil (never fires).
+func tickerChan(t *time.Ticker) <-chan time.Time {
+	if t == nil {
+		return make(chan time.Time) // never fires
+	}
+	return t.C
 }

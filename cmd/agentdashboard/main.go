@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -57,24 +58,27 @@ func (p *conversationSummaryProvider) Summary() epaper.SessionSummary {
 	now := time.Now()
 	const archiveAge = 48 * time.Hour
 
-	// Count unique projects per column, matching the HTML dashboard's logic.
+	// Track the most recent LastEventAt per project per column.
 	// A project can appear in multiple columns (e.g. has both done and archived conversations).
-	pendingProjects := make(map[string]struct{})
-	doneProjects := make(map[string]struct{})
-	archivedProjects := make(map[string]struct{})
-	allProjects := make(map[string]struct{})
+	type projectTime = map[string]time.Time
+	pendingProjects := make(projectTime)
+	doneProjects := make(projectTime)
+	archivedProjects := make(projectTime)
 
 	for _, c := range convs {
 		if c.IsSubagent {
 			continue
 		}
-		allProjects[c.Project] = struct{}{}
+		var col projectTime
 		if now.Sub(c.LastEventAt) >= archiveAge {
-			archivedProjects[c.Project] = struct{}{}
+			col = archivedProjects
 		} else if c.Status == conversation.StatusRunning || c.Status == conversation.StatusWaiting {
-			pendingProjects[c.Project] = struct{}{}
+			col = pendingProjects
 		} else {
-			doneProjects[c.Project] = struct{}{}
+			col = doneProjects
+		}
+		if t, ok := col[c.Project]; !ok || c.LastEventAt.After(t) {
+			col[c.Project] = c.LastEventAt
 		}
 	}
 
@@ -83,25 +87,32 @@ func (p *conversationSummaryProvider) Summary() epaper.SessionSummary {
 	summary.DoneSessions = len(doneProjects)
 	summary.ArchivedSessions = len(archivedProjects)
 
-	for project := range pendingProjects {
-		if len(summary.PendingProjects) >= 8 {
-			break
-		}
-		summary.PendingProjects = append(summary.PendingProjects, project)
-	}
-	for project := range doneProjects {
-		if len(summary.DoneProjects) >= 8 {
-			break
-		}
-		summary.DoneProjects = append(summary.DoneProjects, project)
-	}
-	for project := range archivedProjects {
-		if len(summary.ArchivedProjects) >= 8 {
-			break
-		}
-		summary.ArchivedProjects = append(summary.ArchivedProjects, project)
-	}
+	summary.PendingProjects = projectsByRecency(pendingProjects, 8)
+	summary.DoneProjects = projectsByRecency(doneProjects, 8)
+	summary.ArchivedProjects = projectsByRecency(archivedProjects, 8)
 	return summary
+}
+
+func projectsByRecency(m map[string]time.Time, limit int) []string {
+	type entry struct {
+		name string
+		t    time.Time
+	}
+	entries := make([]entry, 0, len(m))
+	for name, t := range m {
+		entries = append(entries, entry{name, t})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].t.After(entries[j].t)
+	})
+	if len(entries) > limit {
+		entries = entries[:limit]
+	}
+	names := make([]string, len(entries))
+	for i, e := range entries {
+		names[i] = e.name
+	}
+	return names
 }
 
 func expandHome(path string) (string, error) {
@@ -158,8 +169,8 @@ func main() {
 	if *epaperAddr != "" {
 		sender := epaper.NewSender(epaper.SenderConfig{
 			DeviceAddr:  *epaperAddr,
-			MinInterval: 60 * time.Second,
-			MaxInterval: 5 * time.Minute,
+			MinInterval: 10 * time.Second,
+			MaxInterval: 1 * time.Minute,
 		}, &conversationSummaryProvider{store: store}, epaper.Renderer{})
 		go sender.Start(ctx)
 		handler.notify = sender.NotifyChange

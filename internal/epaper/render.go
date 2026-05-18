@@ -14,6 +14,10 @@ import (
 const (
 	Width  = 800
 	Height = 480
+
+	TimePatchX = 0   // left edge of the time strip in display coordinates
+	timePatchW = 160 // wide enough for any HH:MM string at 24pt
+	timePatchH = 60  // full header bar height
 )
 
 type SessionSummary struct {
@@ -62,10 +66,8 @@ func (r Renderer) Render(s SessionSummary) *image.RGBA {
 	if f := loadFont(24); f != nil {
 		dc.SetFontFace(f)
 	}
-	dc.DrawString("Agent Dashboard", 20, 40)
-	ts := time.Now().Format("2006-01-02 15:04")
-	tw, _ := dc.MeasureString(ts)
-	dc.DrawString(ts, float64(Width)-tw-20, 40)
+	ts := time.Now().Format("15:04")
+	dc.DrawString(ts, 20, 40)
 
 	// Count badges row
 	badges := []struct {
@@ -154,5 +156,21 @@ func (r Renderer) Render(s SessionSummary) *image.RGBA {
 		}
 	}
 
+	return dc.Image().(*image.RGBA)
+}
+
+// RenderTimePatch renders just the time text on a black background, sized to
+// overwrite the top-right corner of the header bar. The returned image is
+// positioned at x=TimePatchX, y=0 in display coordinates.
+func (r Renderer) RenderTimePatch() *image.RGBA {
+	dc := gg.NewContext(timePatchW, timePatchH)
+	dc.SetRGB(0, 0, 0)
+	dc.Clear()
+	dc.SetRGB(1, 1, 1)
+	if f := loadFont(24); f != nil {
+		dc.SetFontFace(f)
+	}
+	ts := time.Now().Format("15:04")
+	dc.DrawString(ts, 20, 40)
 	return dc.Image().(*image.RGBA)
 }
