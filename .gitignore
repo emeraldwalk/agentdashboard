@@ -13,7 +13,7 @@ frontend/dist/
 *.out
 
 # ePaper debug images
-epaper-images/*.png
+**/epaper-images/*.png
 
 # PlatformIO build artifacts
 firmware/epaper-display/.pio/

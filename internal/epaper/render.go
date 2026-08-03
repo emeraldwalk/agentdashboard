@@ -159,6 +159,56 @@ func (r Renderer) Render(s SessionSummary) *image.RGBA {
 	return dc.Image().(*image.RGBA)
 }
 
+// RenderVerse draws body text with a right-aligned citation onto an 800×480
+// image, sized to fill the display. Body text is word-wrapped and centered.
+func (r Renderer) RenderVerse(text, citation string) *image.RGBA {
+	dc := gg.NewContext(Width, Height)
+
+	dc.SetRGB(1, 1, 1)
+	dc.Clear()
+	dc.SetRGB(0, 0, 0)
+
+	const margin = 60.0
+	const citationH = 50.0
+	maxWidth := float64(Width) - 2*margin
+
+	bodySize := fitFontSize(dc, text, maxWidth, float64(Height)-citationH-2*margin)
+	if f := loadFont(bodySize); f != nil {
+		dc.SetFontFace(f)
+	}
+	dc.DrawStringWrapped(text, float64(Width)/2, (float64(Height)-citationH)/2,
+		0.5, 0.5, maxWidth, 1.4, gg.AlignCenter)
+
+	if f := loadFont(20); f != nil {
+		dc.SetFontFace(f)
+	}
+	cw, _ := dc.MeasureString(citation)
+	dc.DrawString(citation, float64(Width)-margin-cw, float64(Height)-margin+10)
+
+	return dc.Image().(*image.RGBA)
+}
+
+// fitFontSize picks the largest font size (within a fixed range) whose
+// word-wrapped rendering of text fits within maxHeight at the given width.
+func fitFontSize(dc *gg.Context, text string, maxWidth, maxHeight float64) float64 {
+	const maxSize = 48.0
+	const minSize = 18.0
+	const lineSpacing = 1.4
+
+	for size := maxSize; size >= minSize; size -= 2 {
+		if f := loadFont(size); f != nil {
+			dc.SetFontFace(f)
+		}
+		lines := dc.WordWrap(text, maxWidth)
+		_, lineH := dc.MeasureString("Ag")
+		totalH := float64(len(lines)) * lineH * lineSpacing
+		if totalH <= maxHeight {
+			return size
+		}
+	}
+	return minSize
+}
+
 // RenderTimePatch renders just the time text on a black background, sized to
 // overwrite the top-right corner of the header bar. The returned image is
 // positioned at x=TimePatchX, y=0 in display coordinates.

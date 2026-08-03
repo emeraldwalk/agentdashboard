@@ -17,13 +17,16 @@ for PLATFORM in "${PLATFORMS[@]}"; do
     OS=$(echo $PLATFORM | cut -d'/' -f1)
     ARCH=$(echo $PLATFORM | cut -d'/' -f2)
     OUTPUT="bin/${APP_NAME}-${OS}-${ARCH}"
+    VERSE_OUTPUT="bin/epaper-verse-${OS}-${ARCH}"
 
     if [ "$OS" = "windows" ]; then
         OUTPUT="${OUTPUT}.exe"
+        VERSE_OUTPUT="${VERSE_OUTPUT}.exe"
     fi
 
     echo "Building for $OS/$ARCH..."
     GOOS=$OS GOARCH=$ARCH go build -o "$OUTPUT" ./cmd/agentdashboard
+    GOOS=$OS GOARCH=$ARCH go build -o "$VERSE_OUTPUT" ./cmd/epaper-verse
 done
 
 find bin/ -not -name "*.exe" -exec chmod +x {} +
